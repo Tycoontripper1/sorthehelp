@@ -11,7 +11,7 @@ export function Settings({ v }: { v: SorthehelpVals }) {
           "font-family:Fraunces,serif;font-weight:600;font-size:28px;letter-spacing:-.01em",
         )}
       >
-        You
+        Profile
       </div>
       <div
         style={css(

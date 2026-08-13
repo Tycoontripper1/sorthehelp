@@ -109,7 +109,7 @@ export function AppShell({ v }: { v: SorthehelpVals }) {
                   onChange={(e) => v.setPayAmount(e.target.value)}
                   placeholder="e.g. 2500"
                   style={css(
-                    "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:14px;color:#202A33;outline:none",
+                    "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
                   )}
                 />
               </div>

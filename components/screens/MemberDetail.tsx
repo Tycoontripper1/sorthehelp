@@ -196,7 +196,7 @@ export function MemberDetail({ v }: { v: SorthehelpVals }) {
             onChange={v.onLink}
             placeholder="paste this member's single-use link"
             style={css(
-              "flex:1;min-width:0;border:1px solid #D6C69A;background:#EFE7D3;border-radius:4px;padding:8px 9px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#202A33;outline:none",
+              "flex:1;min-width:0;border:1px solid #D6C69A;background:#EFE7D3;border-radius:4px;padding:8px 9px;font-family:'IBM Plex Mono',monospace;font-size:16px;color:#202A33;outline:none",
             )}
           />
         </div>

@@ -93,6 +93,35 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
           </button>
         ))}
       </div>
+      <div
+        style={css(
+          "display:flex;align-items:center;gap:8px;margin-top:14px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:9px 13px",
+        )}
+      >
+        <span style={css("font-size:13px;color:#9c9484;line-height:1")}>
+          ⌕
+        </span>
+        <input
+          type="text"
+          value={v.query}
+          onChange={v.onQuery}
+          placeholder="Search name or number"
+          style={css(
+            "flex:1;min-width:0;border:none;background:transparent;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
+          )}
+        />
+        {v.query && (
+          <button
+            type="button"
+            onClick={v.clearQuery}
+            style={css(
+              "border:none;background:none;color:#9c9484;font-size:15px;cursor:pointer;padding:0;line-height:1",
+            )}
+          >
+            ✕
+          </button>
+        )}
+      </div>
       <div style={css("display:flex;gap:6px;margin-top:16px;flex-wrap:wrap")}>
         {v.filters.map((f, i) => (
           <button
@@ -107,6 +136,17 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
           </button>
         ))}
       </div>
+      {v.rows.length === 0 && (
+        <div
+          style={css(
+            "text-align:center;padding:32px 16px;color:#9c9484;font-size:13px;margin-top:16px",
+          )}
+        >
+          {v.query
+            ? `No members match "${v.query}"`
+            : "No members match these filters"}
+        </div>
+      )}
       <div
         style={css(
           "display:flex;flex-direction:column;gap:12px;margin-top:16px",
@@ -306,7 +346,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                   onChange={(e) => v.setNewName(e.target.value)}
                   placeholder="e.g. Ngozi Okafor"
                   style={css(
-                    "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:14px;color:#202A33;outline:none",
+                    "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
                   )}
                 />
               </div>
@@ -358,7 +398,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                     onChange={(e) => v.setNewAmount(e.target.value)}
                     placeholder="5000"
                     style={css(
-                      "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:14px;color:#202A33;outline:none",
+                      "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
                     )}
                   />
                 </div>
@@ -376,7 +416,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                     onChange={(e) => v.setNewPhone(e.target.value)}
                     placeholder="08012345678"
                     style={css(
-                      "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:14px;color:#202A33;outline:none",
+                      "width:100%;border:1px solid #D6C69A;background:#FBF7EC;border-radius:4px;padding:10px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
                     )}
                   />
                 </div>

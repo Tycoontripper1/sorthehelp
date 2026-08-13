@@ -47,7 +47,7 @@ export function Signup({ v }: { v: SorthehelpVals }) {
           onChange={v.onOwner}
           placeholder="e.g. Amaka Nwosu"
           style={css(
-            "width:100%;box-sizing:border-box;border:1px solid #D6C69A;background:#EFE7D3;border-radius:5px;padding:12px 11px;font-family:Inter,sans-serif;font-size:15px;color:#202A33;outline:none",
+            "width:100%;box-sizing:border-box;border:1px solid #D6C69A;background:#EFE7D3;border-radius:5px;padding:12px 11px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
           )}
         />
         <label
@@ -75,7 +75,7 @@ export function Signup({ v }: { v: SorthehelpVals }) {
             onChange={v.onPhone}
             placeholder="801 234 5678"
             style={css(
-              "flex:1;min-width:0;border:none;background:transparent;padding:12px 11px;font-family:'IBM Plex Mono',monospace;font-size:15px;letter-spacing:.04em;color:#202A33;outline:none",
+              "flex:1;min-width:0;border:none;background:transparent;padding:12px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.04em;color:#202A33;outline:none",
             )}
           />
         </div>

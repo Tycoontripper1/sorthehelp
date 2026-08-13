@@ -76,7 +76,7 @@ export function Login({ v }: { v: SorthehelpVals }) {
               onChange={v.onPhone}
               placeholder="801 234 5678"
               style={css(
-                "flex:1;min-width:0;border:none;background:transparent;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:15px;letter-spacing:.04em;color:#202A33;outline:none",
+                "flex:1;min-width:0;border:none;background:transparent;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.04em;color:#202A33;outline:none",
               )}
             />
           </div>

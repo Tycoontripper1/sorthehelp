@@ -387,10 +387,17 @@ export function useSorthehelp(
     go[k] = nav(k);
   });
 
+  const q = s.query.trim().toLowerCase();
   const visible = s.members
     .filter((m) => m.group === s.group)
     .filter((m) => s.filter === "all" || m.type === s.filter)
-    .filter((m) => s.statusFilter === "all" || statusOf(m) === s.statusFilter);
+    .filter((m) => s.statusFilter === "all" || statusOf(m) === s.statusFilter)
+    .filter(
+      (m) =>
+        !q ||
+        m.name.toLowerCase().includes(q) ||
+        m.phone.toLowerCase().includes(q),
+    );
 
   const rows = visible.map((m) => {
     const st = statusOf(m);
@@ -816,6 +823,10 @@ export function useSorthehelp(
 
     revenue: naira(s.revenue),
     stats,
+    query: s.query,
+    onQuery: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setS((prev) => ({ ...prev, query: e.target.value })),
+    clearQuery: () => setS((prev) => ({ ...prev, query: "" })),
     filters,
     rows,
     groups,
