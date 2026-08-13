@@ -64,7 +64,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
       </div>
       <div
         style={css(
-          "display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px",
+          "display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px",
         )}
       >
         {v.stats.map((s, i) => (
@@ -73,7 +73,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
             type="button"
             onClick={s.tap}
             style={css(
-              `background:#FBF7EC;border:1px solid #D6C69A;border-radius:3px;padding:10px 6px;text-align:center;cursor:pointer;box-shadow:${s.shadow}`,
+              `background:#FBF7EC;border:1px solid #D6C69A;border-radius:3px;padding:10px 3px;text-align:center;cursor:pointer;box-shadow:${s.shadow}`,
             )}
           >
             <div
@@ -224,15 +224,15 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                 </div>
               </div>
               <div style={css("display:flex;gap:6px")}>
-                {m.showPart && (
+                {m.showLog && (
                   <button
                     type="button"
-                    onClick={m.logPart}
+                    onClick={m.logPayment}
                     style={css(
                       "border:1px solid #D6C69A;background:#FFF;color:#202A33;border-radius:4px;padding:7px 11px;font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer",
                     )}
                   >
-                    Log part
+                    Log payment
                   </button>
                 )}
                 {m.showPay && (
@@ -249,7 +249,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                 {m.showSend && (
                   <button
                     type="button"
-                    onClick={m.open}
+                    onClick={m.send}
                     style={css(
                       "border:1px solid #C7D9EE;background:#E9F0FA;color:#2E5C8A;border-radius:4px;padding:7px 11px;font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer",
                     )}

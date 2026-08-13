@@ -81,7 +81,7 @@ export function Groups({ v }: { v: SorthehelpVals }) {
             "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#A9781F",
           )}
         >
-          Free plan · 2 of 2 groups used
+          Free plan · {v.groups.length} of 2 groups used
         </div>
         <div
           style={css(

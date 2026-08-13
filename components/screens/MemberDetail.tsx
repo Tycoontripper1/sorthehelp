@@ -245,7 +245,7 @@ export function MemberDetail({ v }: { v: SorthehelpVals }) {
           </span>
         </div>
       </div>
-      {sel.showPart && (
+      {sel.canLog && (
         <button
           type="button"
           onClick={v.openPay}
@@ -253,7 +253,7 @@ export function MemberDetail({ v }: { v: SorthehelpVals }) {
             "width:100%;border:1px solid #D6C69A;background:#FFF;color:#202A33;border-radius:5px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;margin-top:14px",
           )}
         >
-          Log a part payment
+          Log a payment
         </button>
       )}
       <div style={css("display:flex;gap:8px;margin-top:14px")}>

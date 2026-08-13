@@ -77,6 +77,9 @@ interface State {
   newType: MemberType;
   payFor: number | null;
   payAmount: string;
+  reminderTemplate: string;
+  reminderEditOpen: boolean;
+  reminderDraft: string;
 }
 
 const initialMembers: Member[] = [
@@ -142,6 +145,9 @@ const initialMembers: Member[] = [
   },
 ];
 
+const DEFAULT_REMINDER_TEMPLATE =
+  "Hi {name}, friendly reminder from {group} — {amount} is still outstanding. Kindly make payment to keep your access active. Thank you!";
+
 function makeInitialState(startScreen: Screen): State {
   return {
     screen: startScreen,
@@ -177,6 +183,9 @@ function makeInitialState(startScreen: Screen): State {
     newType: "one_time",
     payFor: null,
     payAmount: "",
+    reminderTemplate: DEFAULT_REMINDER_TEMPLATE,
+    reminderEditOpen: false,
+    reminderDraft: "",
   };
 }
 
@@ -224,26 +233,61 @@ export function useSorthehelp(
     });
   const daysUntil = (ts: number) => Math.round((ts - Date.now()) / DAY);
 
+  const waLink = (phone: string, message: string) => {
+    const digits = phone.replace(/\D/g, "");
+    const intl = digits.startsWith("234")
+      ? digits
+      : "234" + digits.replace(/^0/, "");
+    return "https://wa.me/" + intl + "?text=" + encodeURIComponent(message);
+  };
+
+  const openWhatsApp = (m: Member, message: string) => {
+    if (!m.phone.trim()) {
+      say("No WhatsApp number saved for " + m.name);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.open(waLink(m.phone, message), "_blank", "noopener,noreferrer");
+    }
+    say("Opening WhatsApp for " + m.name);
+  };
+
+  const reminderMessage = (m: Member) => {
+    const balance = m.amount - m.paidAmount;
+    const template = s.reminderTemplate.trim() || DEFAULT_REMINDER_TEMPLATE;
+    return template
+      .replace(/\{name\}/g, m.name)
+      .replace(/\{group\}/g, m.note)
+      .replace(/\{amount\}/g, naira(balance));
+  };
+
   const statusOf = (m: Member): MemberStatus => {
-    if (m.type === "one_time")
-      return m.paidAmount >= m.amount ? "active" : "pending";
+    if (m.type === "one_time") {
+      if (m.paidAmount >= m.amount) return "active";
+      if (m.paidAmount > 0) return "part";
+      return "pending";
+    }
     const d = daysUntil(m.dueDate!);
     return d < 0 ? "lapsed" : d <= 3 ? "due" : "active";
   };
 
   const badgeOf = (st: MemberStatus, m: Member): [string, string, string] => {
-    if (m.type === "one_time")
-      return st === "active"
-        ? ["Paid", "#E3ECE3", "#3F6B4F"]
-        : ["Pending", "#ECE7DA", FAINT];
+    if (m.type === "one_time") {
+      if (st === "active") return ["Paid", "#E3ECE3", "#3F6B4F"];
+      if (st === "part") return ["Part paid", "#E9F0FA", "#2E5C8A"];
+      return ["Pending", "#ECE7DA", FAINT];
+    }
     if (st === "lapsed") return ["Lapsed", "#F0DCD3", "#8C4A3A"];
     if (st === "due") return ["Due soon", "#F3E7CB", "#A9781F"];
     return ["Active", "#E3ECE3", "#3F6B4F"];
   };
 
   const dueText = (m: Member, st: MemberStatus) => {
-    if (m.type === "one_time")
-      return m.paidAmount >= m.amount ? "Paid · one-time" : "Awaiting payment";
+    if (m.type === "one_time") {
+      if (st === "active") return "Paid · one-time";
+      if (st === "part") return naira(m.paidAmount) + " of " + naira(m.amount);
+      return "Awaiting payment";
+    }
     const d = daysUntil(m.dueDate!);
     if (st === "lapsed")
       return (
@@ -310,6 +354,24 @@ export function useSorthehelp(
     say(s.newName.trim() + " added to " + s.group);
   };
 
+  const openReminderEdit = () =>
+    setS((prev) => ({
+      ...prev,
+      reminderEditOpen: true,
+      reminderDraft: prev.reminderTemplate.trim() || DEFAULT_REMINDER_TEMPLATE,
+    }));
+  const closeReminderEdit = () =>
+    setS((prev) => ({ ...prev, reminderEditOpen: false, reminderDraft: "" }));
+  const saveReminderEdit = () => {
+    setS((prev) => ({
+      ...prev,
+      reminderTemplate: prev.reminderDraft.trim() || DEFAULT_REMINDER_TEMPLATE,
+      reminderEditOpen: false,
+      reminderDraft: "",
+    }));
+    say("Reminder message updated");
+  };
+
   const closePay = () =>
     setS((prev) => ({ ...prev, payFor: null, payAmount: "" }));
   const confirmPay = () => {
@@ -323,18 +385,18 @@ export function useSorthehelp(
     const target = s.members.find((m) => m.id === id);
     setS((prev) => ({
       ...prev,
-      members: prev.members.map((m) =>
-        m.id !== id
-          ? m
-          : {
-              ...m,
-              paidAmount: Math.min(m.paidAmount + amount, m.amount),
-              dueDate:
-                m.type === "recurring" && m.paidAmount + amount >= m.amount
-                  ? Date.now() + 30 * DAY
-                  : m.dueDate,
-            },
-      ),
+      members: prev.members.map((m) => {
+        if (m.id !== id) return m;
+        const cycleDone =
+          m.type === "recurring" && m.paidAmount + amount >= m.amount;
+        return {
+          ...m,
+          paidAmount: cycleDone
+            ? 0
+            : Math.min(m.paidAmount + amount, m.amount),
+          dueDate: cycleDone ? Date.now() + 30 * DAY : m.dueDate,
+        };
+      }),
       revenue: prev.revenue + amount,
       payFor: null,
       payAmount: "",
@@ -354,7 +416,7 @@ export function useSorthehelp(
             ? m
             : m.type === "one_time"
               ? { ...m, paidAmount: m.amount }
-              : { ...m, dueDate: Date.now() + 30 * DAY },
+              : { ...m, paidAmount: 0, dueDate: Date.now() + 30 * DAY },
         ),
         revenue: prev.revenue + (target ? target.amount : 0),
         stampId: id,
@@ -414,7 +476,7 @@ export function useSorthehelp(
       amount: naira(m.amount),
       dueText: dueText(m, st),
       showPay: !paidOneTime,
-      showPart: m.paidAmount > 0 && m.paidAmount < m.amount,
+      showLog: !paidOneTime,
       showSend: paidOneTime,
       showRemind:
         (m.type === "one_time" && !(m.paidAmount >= m.amount)) ||
@@ -422,11 +484,27 @@ export function useSorthehelp(
         st === "lapsed",
       stamped: s.stampId === m.id,
       pay: () => markPaid(m.id),
-      logPart: () => {
+      logPayment: () => {
         setS((prev) => ({ ...prev, payFor: m.id }));
-        say("Logging partial payment for " + m.name);
+        say("Logging payment for " + m.name);
       },
-      remind: () => say("Opening WhatsApp for " + m.name),
+      remind: () => openWhatsApp(m, reminderMessage(m)),
+      send: () => {
+        if (!m.link.trim()) {
+          setS((prev) => ({ ...prev, selId: m.id, screen: "member" }));
+          say("Add an access link for " + m.name + " first");
+          return;
+        }
+        openWhatsApp(
+          m,
+          "Hi " +
+            m.name +
+            ", here's your access link for " +
+            m.note +
+            ": " +
+            m.link,
+        );
+      },
       open: () => setS((prev) => ({ ...prev, selId: m.id, screen: "member" })),
     };
   });
@@ -436,7 +514,8 @@ export function useSorthehelp(
     inGroup.filter((m) => statusOf(m) === st).length;
   const statDef: [MemberStatus, string, string][] = [
     ["active", "Active", "#3F6B4F"],
-    ["due", "Due soon", "#A9781F"],
+    ["part", "Part", "#2E5C8A"],
+    ["due", "Due", "#A9781F"],
     ["lapsed", "Lapsed", "#8C4A3A"],
     ["pending", "Pending", FAINT],
   ];
@@ -495,6 +574,10 @@ export function useSorthehelp(
     ),
     showPart:
       selMember.paidAmount > 0 && selMember.paidAmount < selMember.amount,
+    canLog: !(
+      selMember.type === "one_time" &&
+      selMember.paidAmount >= selMember.amount
+    ),
     paidPercent: Math.round((selMember.paidAmount / selMember.amount) * 100),
     paidAmount: naira(selMember.paidAmount),
     balanceLeft: naira(selMember.amount - selMember.paidAmount),
@@ -550,35 +633,57 @@ export function useSorthehelp(
     ? Math.max(payMember.amount - payMember.paidAmount, 0)
     : 0;
 
-  const groupDefs = [
-    {
-      name: "Advanced Crochet",
-      cycle: "one-time",
-      price: "₦5,000",
-      members: 2,
-      dueNote: "1 pending",
-      dueColor: FAINT,
-    },
-    {
-      name: "Iron Yard",
-      cycle: "every 30 days",
-      price: "₦8,000+",
-      members: 3,
-      dueNote: "1 lapsed",
-      dueColor: "#8C4A3A",
-    },
-  ];
-  const groups = groupDefs.map((g) => ({
-    ...g,
-    border: s.group === g.name ? INK : RULE,
-    tap: () =>
-      setS((prev) => ({
-        ...prev,
-        group: g.name,
-        screen: "ledger",
-        statusFilter: "all",
-      })),
-  }));
+  const groupNames = Array.from(new Set(s.members.map((m) => m.group)));
+  const groups = groupNames.map((name) => {
+    const gm = s.members.filter((m) => m.group === name);
+    const cycle = gm.every((m) => m.type === "one_time")
+      ? "one-time"
+      : "every 30 days";
+    const prices = Array.from(new Set(gm.map((m) => m.amount))).sort(
+      (a, b) => a - b,
+    );
+    const price =
+      prices.length <= 1 ? naira(prices[0] ?? 0) : naira(prices[0]) + "+";
+    const statuses = gm.map(statusOf);
+    const lapsedN = statuses.filter((st) => st === "lapsed").length;
+    const dueN = statuses.filter((st) => st === "due").length;
+    const partN = statuses.filter((st) => st === "part").length;
+    const pendingN = statuses.filter((st) => st === "pending").length;
+    let dueNote: string;
+    let dueColor: string;
+    if (lapsedN > 0) {
+      dueNote = lapsedN + " lapsed";
+      dueColor = "#8C4A3A";
+    } else if (dueN > 0) {
+      dueNote = dueN + " due soon";
+      dueColor = "#A9781F";
+    } else if (partN > 0) {
+      dueNote = partN + " part paid";
+      dueColor = "#2E5C8A";
+    } else if (pendingN > 0) {
+      dueNote = pendingN + " pending";
+      dueColor = FAINT;
+    } else {
+      dueNote = "all settled";
+      dueColor = "#3F6B4F";
+    }
+    return {
+      name,
+      cycle,
+      price,
+      members: gm.length,
+      dueNote,
+      dueColor,
+      border: s.group === name ? INK : RULE,
+      tap: () =>
+        setS((prev) => ({
+          ...prev,
+          group: name,
+          screen: "ledger",
+          statusFilter: "all",
+        })),
+    };
+  });
 
   const tabDef: [Screen, string, string][] = [
     ["ledger", "▤", "Members"],
@@ -624,7 +729,7 @@ export function useSorthehelp(
       sub: "The text sent on WhatsApp",
       value: "Edit",
       valueColor: SOFT,
-      tap: () => say("Reminder template editor"),
+      tap: openReminderEdit,
     },
     {
       title: "Plan",
@@ -832,6 +937,12 @@ export function useSorthehelp(
     groups,
     tabs,
     settingRows,
+    reminderEditOpen: s.reminderEditOpen,
+    reminderDraft: s.reminderDraft,
+    setReminderDraft: (v: string) =>
+      setS((prev) => ({ ...prev, reminderDraft: v })),
+    closeReminderEdit,
+    saveReminderEdit,
     groupLabel: s.group,
     sel,
     onLink: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -856,7 +967,7 @@ export function useSorthehelp(
       }));
     },
     paySel: () => markPaid(s.selId),
-    remindSel: () => say("Opening WhatsApp for " + sel.name),
+    remindSel: () => openWhatsApp(selMember, reminderMessage(selMember)),
 
     addOpen: s.addOpen,
     openAdd,
