@@ -35,7 +35,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Sorthehelp" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        <link rel="icon" href="/icon-192.png" />
+        <link rel="icon" href="/icon-192.png" sizes="192x192" />
+        <link rel="icon" href="/icon-512.png" sizes="512x512" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -52,7 +53,7 @@ export default function RootLayout({
             __html: `
               if ('serviceWorker' in navigator && location.protocol !== 'file:') {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('./sw.js').catch(function() {});
+                  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
                 });
               }
               
