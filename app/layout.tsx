@@ -10,6 +10,13 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Sorthehelp",
   },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -34,10 +41,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Sorthehelp" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        <link rel="icon" href="/icon-192.png" sizes="192x192" />
-        <link rel="icon" href="/icon-512.png" sizes="512x512" />
-        <link rel="manifest" href="/manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
