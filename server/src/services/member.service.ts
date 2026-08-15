@@ -1,6 +1,7 @@
 import { Prisma, type Member, type Plan } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
+import { maybeGrantTelegramAccess } from "./access.service";
 
 const DAY_MS = 86_400_000;
 const CYCLE_MS = 30 * DAY_MS;
@@ -11,12 +12,16 @@ const CYCLE_MS = 30 * DAY_MS;
 export async function applyPayment(memberId: string, amount: number): Promise<Member> {
   if (amount <= 0) throw ApiError.badRequest("Amount must be greater than zero");
 
-  return prisma.$transaction(async (tx) => {
+  let justCompleted = false;
+
+  const updated = await prisma.$transaction(async (tx) => {
     const member = await tx.member.findUnique({ where: { id: memberId } });
     if (!member) throw ApiError.notFound("Member not found");
 
-    const cycleDone = member.type === "RECURRING" && member.paidAmount + amount >= member.amount;
-    const updated = await tx.member.update({
+    justCompleted = member.paidAmount + amount >= member.amount;
+    const cycleDone = member.type === "RECURRING" && justCompleted;
+
+    const result = await tx.member.update({
       where: { id: memberId },
       data: {
         paidAmount: cycleDone ? 0 : Math.min(member.paidAmount + amount, member.amount),
@@ -28,18 +33,28 @@ export async function applyPayment(memberId: string, amount: number): Promise<Me
       data: { memberId, type: "PAYMENT", amount },
     });
 
-    return updated;
+    return result;
   });
+
+  // Outside the transaction — this makes an external HTTP call, which
+  // shouldn't hold a DB transaction open or roll back a recorded payment
+  // if it's slow or fails.
+  if (justCompleted) {
+    await maybeGrantTelegramAccess(memberId);
+    return (await prisma.member.findUnique({ where: { id: memberId } })) ?? updated;
+  }
+
+  return updated;
 }
 
 /** Marks a member as fully paid. One-time: paid in full. Recurring: cycle
  * settled, rolls to a fresh 30-day period. Mirrors the frontend's markPaid(). */
 export async function markPaid(memberId: string): Promise<Member> {
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     const member = await tx.member.findUnique({ where: { id: memberId } });
     if (!member) throw ApiError.notFound("Member not found");
 
-    const updated = await tx.member.update({
+    const result = await tx.member.update({
       where: { id: memberId },
       data:
         member.type === "ONE_TIME"
@@ -51,8 +66,12 @@ export async function markPaid(memberId: string): Promise<Member> {
       data: { memberId, type: "MARK_PAID", amount: member.amount },
     });
 
-    return updated;
+    return result;
   });
+
+  await maybeGrantTelegramAccess(memberId);
+
+  return (await prisma.member.findUnique({ where: { id: memberId } })) ?? updated;
 }
 
 /** Reassigns a member to a plan (deriving amount/type from it) or to "custom"

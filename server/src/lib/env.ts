@@ -14,6 +14,9 @@ const schema = z.object({
   ZEPTOMAIL_FROM_EMAIL: z.string().default("noreply@sorthehelp.app"),
   ZEPTOMAIL_FROM_NAME: z.string().default("Sorthehelp"),
   APP_URL: z.string().default("http://localhost:3000"),
+
+  // Telegram — leave unset in dev; invite links fall back to a logged stub.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

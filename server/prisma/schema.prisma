@@ -48,12 +48,13 @@ model Owner {
 }
 
 model Group {
-  id        String   @id @default(cuid())
-  ownerId   String
-  owner     Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  ownerId        String
+  owner          Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name           String
+  telegramChatId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   plans   Plan[]
   members Member[]

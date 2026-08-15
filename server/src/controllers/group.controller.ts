@@ -71,8 +71,11 @@ export async function getGroup(req: Request, res: Response) {
 
 export async function updateGroup(req: Request, res: Response) {
   const existing = await requireOwnedGroup(req.ownerId!, req.params.id);
-  const { name } = req.body as { name: string };
-  const group = await prisma.group.update({ where: { id: existing.id }, data: { name } });
+  const { name, telegramChatId } = req.body as { name?: string; telegramChatId?: string | null };
+  const group = await prisma.group.update({
+    where: { id: existing.id },
+    data: { name, telegramChatId },
+  });
   sendSuccess(res, 200, "Group updated successfully", { group });
 }
 
