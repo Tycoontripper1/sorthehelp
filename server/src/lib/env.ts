@@ -8,6 +8,12 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
+  // Zeptomail — leave unset in dev; emails fall back to console logging.
+  ZEPTOMAIL_API_KEY: z.string().optional(),
+  ZEPTOMAIL_FROM_EMAIL: z.string().default("noreply@sorthehelp.app"),
+  ZEPTOMAIL_FROM_NAME: z.string().default("Sorthehelp"),
+  APP_URL: z.string().default("http://localhost:3000"),
 });
 
 const parsed = schema.safeParse(process.env);

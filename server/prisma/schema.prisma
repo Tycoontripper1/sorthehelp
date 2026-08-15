@@ -29,11 +29,14 @@ enum EntryType {
 }
 
 model Owner {
-  id               String   @id @default(cuid())
-  phone            String   @unique
-  name             String?
-  pinHash          String?
-  payoutAccount    String?
+  id              String    @id @default(cuid())
+  email           String?   @unique
+  phone           String?   @unique
+  name            String?
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  pinHash         String?
+  payoutAccount   String?
   planTier         PlanTier @default(FREE)
   reminderTemplate String   @default("Hi {name}, friendly reminder from {group} — {amount} is still outstanding. Kindly make payment to keep your access active. Thank you!")
   createdAt        DateTime @default(now())
