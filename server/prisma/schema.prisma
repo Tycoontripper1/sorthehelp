@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local dev — zero setup, one file. Swap to postgresql/mysql for
+  // production by changing `provider` and `DATABASE_URL`; the schema below
+  // doesn't use anything SQLite-specific.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PlanTier {
+  FREE
+  PRO
+}
+
+enum EntryType {
+  ADDED
+  PAYMENT
+  MARK_PAID
+  REMINDER
+  NOTE
+}
+
+model Owner {
+  id               String   @id @default(cuid())
+  phone            String   @unique
+  name             String?
+  pinHash          String?
+  payoutAccount    String?
+  planTier         PlanTier @default(FREE)
+  reminderTemplate String   @default("Hi {name}, friendly reminder from {group} — {amount} is still outstanding. Kindly make payment to keep your access active. Thank you!")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  groups Group[]
+
+  @@map("owners")
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plans   Plan[]
+  members Member[]
+
+  @@unique([ownerId, name])
+  @@map("groups")
+}
+
+model Plan {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name      String
+  price     Int
+  type      MemberType
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  members Member[]
+
+  @@map("plans")
+}
+
+model Member {
+  id          String     @id @default(cuid())
+  groupId     String
+  group       Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  planId      String?
+  plan        Plan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
+  name        String
+  phone       String
+  type        MemberType
+  amount      Int
+  paidAmount  Int        @default(0)
+  link        String     @default("")
+  dueDate     DateTime?
+  earlyAccess Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  entries Entry[]
+
+  @@map("members")
+}
+
+model Entry {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  type      EntryType
+  amount    Int?
+  method    String?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@map("entries")
+}
