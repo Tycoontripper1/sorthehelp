@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { sendSuccess } from "../utils/apiResponse";
 import { requireOwnedGroup, requireOwnedPlan } from "../services/ownership.service";
 import { cascadePlanUpdate } from "../services/member.service";
 
@@ -10,7 +11,7 @@ export async function listPlans(req: Request, res: Response) {
     orderBy: { createdAt: "asc" },
     include: { _count: { select: { members: true } } },
   });
-  res.status(200).json({
+  sendSuccess(res, 200, "Plans fetched successfully", {
     plans: plans.map((p) => ({ ...p, memberCount: p._count.members, _count: undefined })),
   });
 }
@@ -19,7 +20,7 @@ export async function createPlan(req: Request, res: Response) {
   const group = await requireOwnedGroup(req.ownerId!, req.params.groupId);
   const { name, price, type } = req.body as { name: string; price: number; type: "ONE_TIME" | "RECURRING" };
   const plan = await prisma.plan.create({ data: { groupId: group.id, name, price, type } });
-  res.status(201).json({ plan: { ...plan, memberCount: 0 } });
+  sendSuccess(res, 201, "Plan created successfully", { plan: { ...plan, memberCount: 0 } });
 }
 
 export async function updatePlan(req: Request, res: Response) {
@@ -35,7 +36,7 @@ export async function updatePlan(req: Request, res: Response) {
     await cascadePlanUpdate(plan.id, { price: plan.price, type: plan.type });
   }
 
-  res.status(200).json({ plan });
+  sendSuccess(res, 200, "Plan updated successfully", { plan });
 }
 
 export async function deletePlan(req: Request, res: Response) {

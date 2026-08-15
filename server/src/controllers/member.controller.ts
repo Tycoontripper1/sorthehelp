@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
+import { sendSuccess } from "../utils/apiResponse";
 import { requireOwnedGroup, requireOwnedMember } from "../services/ownership.service";
 import { statusOf } from "../services/status.service";
 import {
@@ -43,7 +44,7 @@ export async function listMembers(req: Request, res: Response) {
   const withStatuses = members.map(withStatus);
   const filtered = status ? withStatuses.filter((m) => m.status === status) : withStatuses;
 
-  res.status(200).json({ members: filtered });
+  sendSuccess(res, 200, "Members fetched successfully", { members: filtered });
 }
 
 export async function createMember(req: Request, res: Response) {
@@ -65,7 +66,7 @@ export async function createMember(req: Request, res: Response) {
     type,
   });
 
-  res.status(201).json({ member: withStatus(member) });
+  sendSuccess(res, 201, "Member added successfully", { member: withStatus(member) });
 }
 
 export async function getMember(req: Request, res: Response) {
@@ -76,7 +77,7 @@ export async function getMember(req: Request, res: Response) {
     prisma.entry.findMany({ where: { memberId: member.id }, orderBy: { createdAt: "desc" } }),
   ]);
 
-  res.status(200).json({
+  sendSuccess(res, 200, "Member fetched successfully", {
     member: { ...withStatus(member), planName: plan?.name ?? null, groupName: group?.name ?? null },
     entries,
   });
@@ -91,7 +92,7 @@ export async function updateMember(req: Request, res: Response) {
     data: { link, earlyAccess },
   });
 
-  res.status(200).json({ member: withStatus(member) });
+  sendSuccess(res, 200, "Member updated successfully", { member: withStatus(member) });
 }
 
 export async function assignMemberPlan(req: Request, res: Response) {
@@ -99,7 +100,7 @@ export async function assignMemberPlan(req: Request, res: Response) {
   const { planId } = req.body as { planId: string | null };
 
   const member = await assignPlan(existing.id, planId);
-  res.status(200).json({ member: withStatus(member) });
+  sendSuccess(res, 200, "Member's plan updated successfully", { member: withStatus(member) });
 }
 
 export async function deleteMember(req: Request, res: Response) {
@@ -113,13 +114,13 @@ export async function logPayment(req: Request, res: Response) {
   const { amount } = req.body as { amount: number };
 
   const member = await applyPayment(existing.id, amount);
-  res.status(200).json({ member: withStatus(member) });
+  sendSuccess(res, 200, "Payment logged successfully", { member: withStatus(member) });
 }
 
 export async function markMemberPaid(req: Request, res: Response) {
   const existing = await requireOwnedMember(req.ownerId!, req.params.id);
   const member = await markPaid(existing.id);
-  res.status(200).json({ member: withStatus(member) });
+  sendSuccess(res, 200, "Member marked as paid", { member: withStatus(member) });
 }
 
 export async function remindMember(req: Request, res: Response) {
@@ -130,13 +131,13 @@ export async function remindMember(req: Request, res: Response) {
   ]);
   if (!owner || !group) throw ApiError.notFound("Owner or group not found");
 
-  const message = renderReminder(owner.reminderTemplate, member, group.name);
-  const url = whatsappLink(member.phone, message);
+  const text = renderReminder(owner.reminderTemplate, member, group.name);
+  const url = whatsappLink(member.phone, text);
   if (!url) throw ApiError.badRequest("No WhatsApp number saved for this member");
 
-  await prisma.entry.create({ data: { memberId: member.id, type: "REMINDER", note: message } });
+  await prisma.entry.create({ data: { memberId: member.id, type: "REMINDER", note: text } });
 
-  res.status(200).json({ message, whatsappUrl: url });
+  sendSuccess(res, 200, "Reminder ready to send", { text, whatsappUrl: url });
 }
 
 export async function listMemberEntries(req: Request, res: Response) {
@@ -145,5 +146,5 @@ export async function listMemberEntries(req: Request, res: Response) {
     where: { memberId: member.id },
     orderBy: { createdAt: "desc" },
   });
-  res.status(200).json({ entries });
+  sendSuccess(res, 200, "Entries fetched successfully", { entries });
 }

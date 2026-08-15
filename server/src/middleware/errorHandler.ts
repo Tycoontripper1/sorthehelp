@@ -4,6 +4,10 @@ import { ZodError } from "zod";
 import { ApiError } from "../utils/ApiError";
 import { env } from "../lib/env";
 
+function fail(res: Response, status: number, message: string, errors: unknown = null) {
+  return res.status(status).json({ success: false, message, errors });
+}
+
 export function errorHandler(
   err: unknown,
   _req: Request,
@@ -12,35 +16,27 @@ export function errorHandler(
   _next: NextFunction,
 ) {
   if (err instanceof ApiError) {
-    return res.status(err.status).json({
-      error: { message: err.message, details: err.details },
-    });
+    return fail(res, err.status, err.message, err.details ?? null);
   }
 
   if (err instanceof ZodError) {
-    return res.status(400).json({
-      error: { message: "Validation failed", details: err.flatten() },
-    });
+    return fail(res, 400, "Validation failed", err.flatten());
   }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
-      return res.status(409).json({
-        error: { message: "A record with these details already exists" },
-      });
+      return fail(res, 409, "A record with these details already exists");
     }
     if (err.code === "P2025") {
-      return res.status(404).json({ error: { message: "Not found" } });
+      return fail(res, 404, "Not found");
     }
   }
 
   console.error(err);
-  return res.status(500).json({
-    error: {
-      message: "Something went wrong",
-      ...(env.NODE_ENV === "development" && {
-        raw: err instanceof Error ? err.message : String(err),
-      }),
-    },
-  });
+  return fail(
+    res,
+    500,
+    "Something went wrong",
+    env.NODE_ENV === "development" ? { raw: err instanceof Error ? err.message : String(err) } : null,
+  );
 }

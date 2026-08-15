@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { sendSuccess } from "../utils/apiResponse";
 import { requireOwnedGroup } from "../services/ownership.service";
 import { statusOf, type MemberStatus } from "../services/status.service";
 
@@ -46,7 +47,7 @@ export async function listGroups(req: Request, res: Response) {
     groups.map(async (g) => ({ ...g, ...(await summarize(g.id)) })),
   );
 
-  res.status(200).json({ groups: withSummary });
+  sendSuccess(res, 200, "Groups fetched successfully", { groups: withSummary });
 }
 
 export async function createGroup(req: Request, res: Response) {
@@ -54,7 +55,9 @@ export async function createGroup(req: Request, res: Response) {
   const group = await prisma.group.create({
     data: { name, ownerId: req.ownerId! },
   });
-  res.status(201).json({ group: { ...group, memberCount: 0, planCount: 0, collected: 0 } });
+  sendSuccess(res, 201, "Group created successfully", {
+    group: { ...group, memberCount: 0, planCount: 0, collected: 0 },
+  });
 }
 
 export async function getGroup(req: Request, res: Response) {
@@ -63,14 +66,14 @@ export async function getGroup(req: Request, res: Response) {
     prisma.plan.findMany({ where: { groupId: group.id }, orderBy: { createdAt: "asc" } }),
     summarize(group.id),
   ]);
-  res.status(200).json({ group: { ...group, ...summary, plans } });
+  sendSuccess(res, 200, "Group fetched successfully", { group: { ...group, ...summary, plans } });
 }
 
 export async function updateGroup(req: Request, res: Response) {
   const existing = await requireOwnedGroup(req.ownerId!, req.params.id);
   const { name } = req.body as { name: string };
   const group = await prisma.group.update({ where: { id: existing.id }, data: { name } });
-  res.status(200).json({ group });
+  sendSuccess(res, 200, "Group updated successfully", { group });
 }
 
 export async function deleteGroup(req: Request, res: Response) {

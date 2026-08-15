@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
+import { sendSuccess } from "../utils/apiResponse";
 import { signAccessToken } from "../middleware/auth";
 import { issueToken, consumeToken } from "../services/verificationToken.service";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../services/email.service";
@@ -52,7 +53,7 @@ export async function signup(req: Request, res: Response) {
   }
 
   const jwt = signAccessToken(owner.id);
-  res.status(201).json({ token: jwt, owner: toSafeOwner(owner) });
+  sendSuccess(res, 201, "Account created successfully", { token: jwt, owner: toSafeOwner(owner) });
 }
 
 export async function login(req: Request, res: Response) {
@@ -68,7 +69,7 @@ export async function login(req: Request, res: Response) {
   }
 
   const token = signAccessToken(owner.id);
-  res.status(200).json({ token, owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "Logged in successfully", { token, owner: toSafeOwner(owner) });
 }
 
 export async function forgotPassword(req: Request, res: Response) {
@@ -82,7 +83,7 @@ export async function forgotPassword(req: Request, res: Response) {
     await sendPasswordResetEmail(email, owner.name, `${env.APP_URL}/reset-password?token=${token}`);
   }
 
-  res.status(200).json({ message: "If an account exists for this email, a reset link has been sent." });
+  sendSuccess(res, 200, "If an account exists for this email, a reset link has been sent.");
 }
 
 export async function resetPassword(req: Request, res: Response) {
@@ -95,7 +96,7 @@ export async function resetPassword(req: Request, res: Response) {
   const owner = await prisma.owner.update({ where: { id: ownerId }, data: { passwordHash } });
 
   const jwt = signAccessToken(owner.id);
-  res.status(200).json({ token: jwt, owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "Password reset successfully", { token: jwt, owner: toSafeOwner(owner) });
 }
 
 export async function verifyEmail(req: Request, res: Response) {
@@ -108,7 +109,7 @@ export async function verifyEmail(req: Request, res: Response) {
     where: { id: ownerId },
     data: { emailVerifiedAt: new Date() },
   });
-  res.status(200).json({ owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "Email verified successfully", { owner: toSafeOwner(owner) });
 }
 
 export async function resendVerification(req: Request, res: Response) {
@@ -116,12 +117,12 @@ export async function resendVerification(req: Request, res: Response) {
   if (!owner) throw ApiError.notFound("Account not found");
   if (!owner.email) throw ApiError.badRequest("No email on file for this account");
   if (owner.emailVerifiedAt) {
-    return res.status(200).json({ message: "Email already verified" });
+    return sendSuccess(res, 200, "Email already verified");
   }
 
   const token = issueToken("EMAIL_VERIFY", owner.id);
   await sendVerificationEmail(owner.email, owner.name, `${env.APP_URL}/verify-email?token=${token}`);
-  return res.status(200).json({ message: "Verification email sent" });
+  return sendSuccess(res, 200, "Verification email sent");
 }
 
 export async function setPin(req: Request, res: Response) {
@@ -133,7 +134,7 @@ export async function setPin(req: Request, res: Response) {
     data: { pinHash },
   });
 
-  res.status(200).json({ owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "PIN set successfully", { owner: toSafeOwner(owner) });
 }
 
 export async function verifyPin(req: Request, res: Response) {
@@ -149,13 +150,13 @@ export async function verifyPin(req: Request, res: Response) {
   if (!matches) throw ApiError.unauthorized("Incorrect PIN");
 
   const token = signAccessToken(owner.id);
-  res.status(200).json({ token, owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "PIN verified successfully", { token, owner: toSafeOwner(owner) });
 }
 
 export async function getMe(req: Request, res: Response) {
   const owner = await prisma.owner.findUnique({ where: { id: req.ownerId } });
   if (!owner) throw ApiError.notFound("Account not found");
-  res.status(200).json({ owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "Profile fetched successfully", { owner: toSafeOwner(owner) });
 }
 
 export async function updateMe(req: Request, res: Response) {
@@ -164,5 +165,5 @@ export async function updateMe(req: Request, res: Response) {
     where: { id: req.ownerId },
     data,
   });
-  res.status(200).json({ owner: toSafeOwner(owner) });
+  sendSuccess(res, 200, "Profile updated successfully", { owner: toSafeOwner(owner) });
 }

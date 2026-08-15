@@ -9,8 +9,43 @@ Express + TypeScript + Prisma backend for Sorthehelp.
   `prisma/schema.prisma` for Postgres/MySQL in production — nothing else in
   the schema is SQLite-specific)
 - **Zod** for request validation
-- **JWT** (via `jsonwebtoken`) for auth, phone + OTP or 4-digit PIN
-- **bcryptjs** for PIN hashing
+- **JWT** (via `jsonwebtoken`) for auth: email/phone + password, or a 4-digit
+  PIN for quick re-login on a trusted device
+- **bcryptjs** for password/PIN hashing
+- **Zeptomail** (Zoho) for verification and password-reset emails
+
+## Response shape
+
+Every route except `/health` (kept flat for uptime/monitoring tools) responds
+with the same envelope, on success and on failure alike:
+
+```jsonc
+// success
+{ "success": true, "message": "Group created successfully", "data": { "group": { ... } } }
+
+// failure — same shape, note `errors` instead of `data`
+{ "success": false, "message": "Validation failed", "errors": { "fieldErrors": { ... } } }
+```
+
+Build these with `sendSuccess(res, status, message, data?)` from
+`utils/apiResponse.ts` — don't call `res.json()` directly in a controller, so
+the shape can't drift route to route. Failures go through the shared
+`errorHandler` middleware (just `throw ApiError.xxx(...)` or let Zod/Prisma
+errors propagate) rather than building the envelope by hand.
+
+Status codes are meaningful, not just 200-with-a-flag:
+
+| Code | Meaning |
+|---|---|
+| 200 | successful request |
+| 201 | resource created |
+| 204 | successful request, no body (deletes) |
+| 400 | bad request / validation error |
+| 401 | not authenticated |
+| 403 | authenticated but not authorized |
+| 404 | resource not found |
+| 409 | conflict (e.g. duplicate email/phone) |
+| 500 | internal server error |
 
 ## Structure
 
@@ -46,22 +81,38 @@ npm run dev                # tsx watch, http://localhost:4000
 
 ## Auth flow
 
-1. `POST /api/auth/otp/request { phone, name? }` — creates/updates the Owner,
-   issues a one-time code. No SMS provider is wired up yet: in non-production
-   the code comes back as `devCode` in the response body, and is logged to
-   the console. Swap `console.log` in `auth.controller.ts` for a real
-   provider (Termii, Twilio, etc.) before shipping, and drop the `devCode`
-   field once one exists.
-2. `POST /api/auth/otp/verify { phone, code }` → `{ token, owner }`
-3. Or, once a PIN is set (`POST /api/auth/pin`, authed), returning users can
-   skip OTP via `POST /api/auth/pin/verify { phone, pin }` → `{ token, owner }`
+Identity is **email and/or phone + password** — at least one of email/phone
+is required at signup, both are optional individually, and either can be
+used to log in.
+
+1. `POST /api/auth/signup { email?, phone?, name?, password }` → `data: { token, owner }`.
+   If an email was given, a verification link is emailed via Zeptomail
+   (`POST /api/auth/email/verify { token }` to consume it; `POST
+   /api/auth/email/resend`, authed, to get a new one). Signup doesn't block
+   on verification — the token is usable immediately.
+2. `POST /api/auth/login { identifier, password }` — `identifier` is either
+   the email or the phone number → `data: { token, owner }`.
+3. Forgot password: `POST /api/auth/password/forgot { email }` always
+   returns the same generic message whether or not the account exists (no
+   email enumeration), and emails a reset link if it does. `POST
+   /api/auth/password/reset { token, password }` consumes it (single-use,
+   1 hour) and returns a fresh `data: { token, owner }`.
+4. Once a PIN is set (`POST /api/auth/pin { pin }`, authed), returning users
+   can skip the password via `POST /api/auth/pin/verify { identifier, pin }`
+   → `data: { token, owner }` — meant for a quick re-unlock on a trusted
+   device, not as the primary login.
+
+**Zeptomail**: with `ZEPTOMAIL_API_KEY` unset (the default), verification
+and reset emails are logged to the console instead of sent, so the whole
+flow is testable with no account. Get a key from
+[zoho.com/zeptomail](https://www.zoho.com/zeptomail/) to send for real.
 
 Send `Authorization: Bearer <token>` on every other route.
 
 ## Resource routes
 
-All under `/api`, all requiring auth except `/health` and `/auth/otp/*` +
-`/auth/pin/verify`.
+All under `/api`, all requiring auth except `/health`, `/auth/signup`,
+`/auth/login`, `/auth/password/*`, `/auth/email/verify`, and `/auth/pin/verify`.
 
 | Method | Path | Notes |
 |---|---|---|
