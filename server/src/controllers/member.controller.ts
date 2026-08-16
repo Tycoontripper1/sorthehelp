@@ -11,6 +11,7 @@ import {
   markPaid,
 } from "../services/member.service";
 import { renderReminder, whatsappLink } from "../services/reminder.service";
+import { revokeTelegramAccess } from "../services/access.service";
 import type { Member } from "@prisma/client";
 
 function withStatus(member: Member) {
@@ -105,6 +106,7 @@ export async function assignMemberPlan(req: Request, res: Response) {
 
 export async function deleteMember(req: Request, res: Response) {
   const existing = await requireOwnedMember(req.ownerId!, req.params.id);
+  await revokeTelegramAccess(existing);
   await prisma.member.delete({ where: { id: existing.id } });
   res.status(204).send();
 }

@@ -1,5 +1,6 @@
+import type { Member } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { createSingleUseInvite } from "./telegram.service";
+import { createSingleUseInvite, revokeInvite } from "./telegram.service";
 
 /**
  * Called right after a member's balance clears (a payment completes it, or
@@ -35,5 +36,24 @@ export async function maybeGrantTelegramAccess(memberId: string): Promise<void> 
     });
   } catch (err) {
     console.error(`[access] Telegram grant failed for member ${memberId}:`, err);
+  }
+}
+
+/**
+ * Called right before a member is deleted — invalidates their invite link
+ * if they had one, so a removed member can't still join later on an
+ * unrevoked link. Best-effort: a failed revoke shouldn't block the delete
+ * itself (the member's leaving the ledger either way).
+ */
+export async function revokeTelegramAccess(member: Pick<Member, "id" | "groupId" | "link">): Promise<void> {
+  if (!member.link.trim()) return;
+
+  try {
+    const group = await prisma.group.findUnique({ where: { id: member.groupId } });
+    if (!group?.telegramChatId) return;
+
+    await revokeInvite(group.telegramChatId, member.link);
+  } catch (err) {
+    console.error(`[access] Telegram revoke failed for member ${member.id}:`, err);
   }
 }

@@ -103,6 +103,9 @@ interface State {
   planFormPrice: string;
   planFormType: MemberType;
   planPickerFor: number | null;
+  telegramChatIds: Record<string, string>;
+  telegramSheetOpen: boolean;
+  telegramDraft: string;
 }
 
 const initialPlans: Plan[] = [
@@ -252,6 +255,9 @@ function makeInitialState(startScreen: Screen): State {
     planFormPrice: "",
     planFormType: "one_time",
     planPickerFor: null,
+    telegramChatIds: {},
+    telegramSheetOpen: false,
+    telegramDraft: "",
   };
 }
 
@@ -483,6 +489,36 @@ export function useSorthehelp(
       };
     });
     say(s.newName.trim() + " added to " + s.group);
+  };
+
+  const openTelegramSettings = () =>
+    setS((prev) => ({
+      ...prev,
+      telegramSheetOpen: true,
+      telegramDraft: prev.telegramChatIds[prev.group] ?? "",
+    }));
+  const closeTelegramSettings = () =>
+    setS((prev) => ({ ...prev, telegramSheetOpen: false, telegramDraft: "" }));
+  const saveTelegramSettings = () => {
+    if (!s.telegramDraft.trim()) {
+      say("Paste a chat ID first");
+      return;
+    }
+    setS((prev) => ({
+      ...prev,
+      telegramChatIds: { ...prev.telegramChatIds, [prev.group]: prev.telegramDraft.trim() },
+      telegramSheetOpen: false,
+      telegramDraft: "",
+    }));
+    say("Telegram connected for " + s.group);
+  };
+  const disconnectTelegram = () => {
+    setS((prev) => {
+      const next = { ...prev.telegramChatIds };
+      delete next[prev.group];
+      return { ...prev, telegramChatIds: next, telegramSheetOpen: false, telegramDraft: "" };
+    });
+    say("Telegram disconnected for " + s.group);
   };
 
   const openPlans = () =>
@@ -1092,10 +1128,10 @@ export function useSorthehelp(
     },
     {
       title: "Telegram bot",
-      sub: "For automatic invite links",
-      value: "v2",
+      sub: "Connected per group — open a group's Telegram setting",
+      value: "Per group",
       valueColor: FAINT,
-      tap: () => say("Automatic links arrive with the backend (v2)"),
+      tap: () => say("Open a group on the Members tab, then tap Telegram"),
     },
     {
       title: "Reminder message",
@@ -1368,6 +1404,17 @@ export function useSorthehelp(
     pickNewPlanType: (t: MemberType) =>
       setS((prev) => ({ ...prev, newPlanType: t })),
     createInlinePlan,
+
+    telegramConnected: Boolean(s.telegramChatIds[s.group]),
+    telegramChatIdLabel: s.telegramChatIds[s.group] || "Not connected",
+    telegramSheetOpen: s.telegramSheetOpen,
+    openTelegramSettings,
+    closeTelegramSettings,
+    telegramDraft: s.telegramDraft,
+    setTelegramDraft: (v: string) =>
+      setS((prev) => ({ ...prev, telegramDraft: v })),
+    saveTelegramSettings,
+    disconnectTelegram,
 
     planFilters,
     planFilterLabel,
