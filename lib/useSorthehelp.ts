@@ -39,7 +39,6 @@ export type Screen =
   | "splash"
   | "login"
   | "signup"
-  | "otp"
   | "recover"
   | "pin"
   | "onboard"
@@ -54,10 +53,10 @@ export type OnboardingVariant = "steps" | "checklist";
 
 interface State {
   screen: Screen;
-  phone: string;
+  identifier: string;
+  password: string;
   ownerName: string;
   terms: boolean;
-  otp: string[];
   pin: string[];
   pin2: string[];
   obStep: number;
@@ -75,11 +74,9 @@ interface State {
   stampId: number | null;
   toast: string;
   pickerOpen: boolean;
-  resend: number;
   revenue: number;
   members: Member[];
   plans: Plan[];
-  isNew: boolean;
   addOpen: boolean;
   newName: string;
   newAmount: string;
@@ -206,10 +203,10 @@ const DEFAULT_REMINDER_TEMPLATE =
 function makeInitialState(startScreen: Screen): State {
   return {
     screen: startScreen,
-    phone: "",
+    identifier: "",
+    password: "",
     ownerName: "",
     terms: true,
-    otp: ["", "", "", "", "", ""],
     pin: ["", "", "", ""],
     pin2: ["", "", "", ""],
     obStep: 1,
@@ -227,11 +224,9 @@ function makeInitialState(startScreen: Screen): State {
     stampId: null,
     toast: "",
     pickerOpen: false,
-    resend: 24,
     revenue: 26000,
     members: initialMembers,
     plans: initialPlans,
-    isNew: true,
     addOpen: false,
     newName: "",
     newAmount: "",
@@ -267,17 +262,6 @@ export function useSorthehelp(
 ) {
   const [s, setS] = useState<State>(() => makeInitialState(startScreen));
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setS((prev) =>
-        prev.screen === "otp" && prev.resend > 0
-          ? { ...prev, resend: prev.resend - 1 }
-          : prev,
-      );
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -753,7 +737,6 @@ export function useSorthehelp(
     "splash",
     "login",
     "signup",
-    "otp",
     "recover",
     "pin",
     "onboard",
@@ -1113,9 +1096,9 @@ export function useSorthehelp(
 
   const settingRows = [
     {
-      title: "Phone number",
+      title: "Email or phone",
       sub: "Used to sign in",
-      value: "+234 801 234 5678",
+      value: s.identifier || "amaka@example.com",
       valueColor: SOFT,
       tap: go.pin,
     },
@@ -1200,16 +1183,6 @@ export function useSorthehelp(
     },
   ];
 
-  const digits = "482913";
-  const otpCells = s.otp.map((ch, i) => ({
-    ch: ch || "·",
-    tap: () =>
-      setS((prev) => {
-        const o = prev.otp.slice();
-        o[i] = digits[i];
-        return { ...prev, otp: o };
-      }),
-  }));
   const pinCells = s.pin.map((ch, i) => ({
     ch: ch ? "•" : "·",
     tap: () =>
@@ -1221,7 +1194,7 @@ export function useSorthehelp(
   }));
   const pinCells2 = s.pin2.map((ch) => ({ ch: ch ? "•" : "·" }));
 
-  const phoneDisplay = s.phone ? "+234 " + s.phone : "+234 801 234 5678";
+  const identifierDisplay = s.identifier || "amaka@example.com";
 
   return {
     go,
@@ -1233,7 +1206,6 @@ export function useSorthehelp(
     isSplash: scr === "splash",
     isLogin: scr === "login",
     isSignup: scr === "signup",
-    isOtp: scr === "otp",
     isRecover: scr === "recover",
     isPin: scr === "pin",
     isObSteps: scr === "onboard" && variant === "steps",
@@ -1253,33 +1225,47 @@ export function useSorthehelp(
     isSettings: scr === "settings",
     isPaywall: scr === "paywall",
 
-    phone: s.phone,
-    onPhone: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setS((prev) => ({ ...prev, phone: e.target.value })),
+    identifier: s.identifier,
+    onIdentifier: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setS((prev) => ({ ...prev, identifier: e.target.value })),
+    password: s.password,
+    onPassword: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setS((prev) => ({ ...prev, password: e.target.value })),
     ownerName: s.ownerName,
     onOwner: (e: React.ChangeEvent<HTMLInputElement>) =>
       setS((prev) => ({ ...prev, ownerName: e.target.value })),
     ownerNameOut: s.ownerName || "Amaka Nwosu",
     termsMark: s.terms ? "✓" : "",
     toggleTerms: () => setS((prev) => ({ ...prev, terms: !prev.terms })),
-    phoneDisplay,
-    otpCells,
+    identifierDisplay,
     pinCells,
     pinCells2,
-    resendIn: "0:" + String(Math.max(s.resend, 0)).padStart(2, "0"),
-    fillCode: () => setS((prev) => ({ ...prev, otp: digits.split("") })),
-    sendCodeNew: () =>
-      setS((prev) => ({ ...prev, screen: "otp", isNew: true, resend: 24 })),
-    sendCodeReturning: () =>
-      setS((prev) => ({ ...prev, screen: "otp", isNew: false, resend: 24 })),
-    verify: () =>
-      s.isNew
-        ? setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }))
-        : setS((prev) => ({ ...prev, screen: "ledger" })),
-    verifyCta: s.isNew ? "Verify and set up" : "Verify and open Sorthehelp",
-    otpNote: s.isNew
-      ? "New account · we will set your first group up next"
-      : "Signing back in · your book is where you left it",
+    loginWithPassword: () => {
+      if (!s.identifier.trim() || !s.password) {
+        say("Enter your email/phone and password");
+        return;
+      }
+      setS((prev) => ({ ...prev, screen: "ledger" }));
+    },
+    signupWithPassword: () => {
+      if (!s.identifier.trim()) {
+        say("Add an email or phone number");
+        return;
+      }
+      if (s.password.length < 8) {
+        say("Password must be at least 8 characters");
+        return;
+      }
+      if (!s.terms) {
+        say("Agree to the terms to continue");
+        return;
+      }
+      setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }));
+    },
+    forgotPassword: () => {
+      say("Reset link sent — check your email");
+      setS((prev) => ({ ...prev, screen: "login" }));
+    },
 
     obStep: s.obStep,
     obBars,

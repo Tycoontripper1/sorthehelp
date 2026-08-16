@@ -27,7 +27,7 @@ export function Signup({ v }: { v: SorthehelpVals }) {
         Set up Sorthehelp
       </div>
       <div style={css("font-size:13.5px;color:#6b6455;margin-top:6px")}>
-        Two things now. Everything else after.
+        A few things now. Everything else after.
       </div>
       <div
         style={css(
@@ -55,30 +55,33 @@ export function Signup({ v }: { v: SorthehelpVals }) {
             "display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin:16px 0 6px",
           )}
         >
-          Phone number
+          Email or phone
         </label>
-        <div
+        <input
+          type="text"
+          value={v.identifier}
+          onChange={v.onIdentifier}
+          placeholder="amaka@example.com"
           style={css(
-            "display:flex;align-items:stretch;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;overflow:hidden",
+            "width:100%;box-sizing:border-box;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;padding:12px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.02em;color:#202A33;outline:none",
+          )}
+        />
+        <label
+          style={css(
+            "display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin:16px 0 6px",
           )}
         >
-          <span
-            style={css(
-              "display:flex;align-items:center;padding:0 11px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#6b6455;background:#E6DBBE;border-right:1px solid #D6C69A",
-            )}
-          >
-            +234
-          </span>
-          <input
-            type="tel"
-            value={v.phone}
-            onChange={v.onPhone}
-            placeholder="801 234 5678"
-            style={css(
-              "flex:1;min-width:0;border:none;background:transparent;padding:12px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.04em;color:#202A33;outline:none",
-            )}
-          />
-        </div>
+          Password
+        </label>
+        <input
+          type="password"
+          value={v.password}
+          onChange={v.onPassword}
+          placeholder="At least 8 characters"
+          style={css(
+            "width:100%;box-sizing:border-box;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;padding:12px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.02em;color:#202A33;outline:none",
+          )}
+        />
         <div
           style={css(
             "display:flex;gap:9px;align-items:flex-start;margin-top:16px",
@@ -100,12 +103,12 @@ export function Signup({ v }: { v: SorthehelpVals }) {
         </div>
         <button
           type="button"
-          onClick={v.sendCodeNew}
+          onClick={v.signupWithPassword}
           style={css(
             "width:100%;margin-top:18px;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
           )}
         >
-          Send me a code
+          Create account
         </button>
         <div
           style={css(
