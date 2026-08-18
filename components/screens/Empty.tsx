@@ -21,7 +21,7 @@ export function Empty({ v }: { v: SorthehelpVals }): React.JSX.Element {
           >
             Sorthe
             <em style={css("font-style:italic;font-weight:500;color:#A6314A")}>
-              help
+              help now
             </em>
           </div>
           <button

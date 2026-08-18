@@ -24,13 +24,21 @@ export interface Member {
   group: string;
   dueDate?: number;
   earlyAccess?: boolean;
+  planId: number | null;
+}
+
+export interface Plan {
+  id: number;
+  group: string;
+  name: string;
+  price: number;
+  type: MemberType;
 }
 
 export type Screen =
   | "splash"
   | "login"
   | "signup"
-  | "otp"
   | "recover"
   | "pin"
   | "onboard"
@@ -45,10 +53,10 @@ export type OnboardingVariant = "steps" | "checklist";
 
 interface State {
   screen: Screen;
-  phone: string;
+  identifier: string;
+  password: string;
   ownerName: string;
   terms: boolean;
-  otp: string[];
   pin: string[];
   pin2: string[];
   obStep: number;
@@ -66,21 +74,60 @@ interface State {
   stampId: number | null;
   toast: string;
   pickerOpen: boolean;
-  resend: number;
   revenue: number;
   members: Member[];
-  isNew: boolean;
+  plans: Plan[];
   addOpen: boolean;
   newName: string;
   newAmount: string;
   newPhone: string;
   newType: MemberType;
+  newPlanId: number | "custom" | null;
+  newPlanFormOpen: boolean;
+  newPlanName: string;
+  newPlanPrice: string;
+  newPlanType: MemberType;
   payFor: number | null;
   payAmount: string;
   reminderTemplate: string;
   reminderEditOpen: boolean;
   reminderDraft: string;
+  planFilter: number | "all";
+  planFilterOpen: boolean;
+  plansOpen: boolean;
+  editingPlanId: number | null;
+  planFormName: string;
+  planFormPrice: string;
+  planFormType: MemberType;
+  planPickerFor: number | null;
+  telegramChatIds: Record<string, string>;
+  telegramSheetOpen: boolean;
+  telegramDraft: string;
 }
+
+const initialPlans: Plan[] = [
+  {
+    id: 1,
+    group: "Advanced Crochet",
+    name: "Standard",
+    price: 5000,
+    type: "one_time",
+  },
+  {
+    id: 2,
+    group: "Iron Yard",
+    name: "Standard",
+    price: 8000,
+    type: "recurring",
+  },
+  {
+    id: 3,
+    group: "Iron Yard",
+    name: "Premium",
+    price: 10000,
+    type: "recurring",
+  },
+];
 
 const initialMembers: Member[] = [
   {
@@ -94,6 +141,7 @@ const initialMembers: Member[] = [
     link: "https://t.me/+abc123uniq",
     group: "Advanced Crochet",
     earlyAccess: false,
+    planId: 1,
   },
   {
     id: 2,
@@ -106,6 +154,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
+    planId: 2,
   },
   {
     id: 3,
@@ -118,6 +167,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
+    planId: 2,
   },
   {
     id: 4,
@@ -130,6 +180,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
+    planId: 3,
   },
   {
     id: 5,
@@ -142,6 +193,7 @@ const initialMembers: Member[] = [
     link: "",
     group: "Advanced Crochet",
     earlyAccess: true,
+    planId: 1,
   },
 ];
 
@@ -151,10 +203,10 @@ const DEFAULT_REMINDER_TEMPLATE =
 function makeInitialState(startScreen: Screen): State {
   return {
     screen: startScreen,
-    phone: "",
+    identifier: "",
+    password: "",
     ownerName: "",
     terms: true,
-    otp: ["", "", "", "", "", ""],
     pin: ["", "", "", ""],
     pin2: ["", "", "", ""],
     obStep: 1,
@@ -172,20 +224,35 @@ function makeInitialState(startScreen: Screen): State {
     stampId: null,
     toast: "",
     pickerOpen: false,
-    resend: 24,
     revenue: 26000,
     members: initialMembers,
-    isNew: true,
+    plans: initialPlans,
     addOpen: false,
     newName: "",
     newAmount: "",
     newPhone: "",
     newType: "one_time",
+    newPlanId: null,
+    newPlanFormOpen: false,
+    newPlanName: "",
+    newPlanPrice: "",
+    newPlanType: "one_time",
     payFor: null,
     payAmount: "",
     reminderTemplate: DEFAULT_REMINDER_TEMPLATE,
     reminderEditOpen: false,
     reminderDraft: "",
+    planFilter: "all",
+    planFilterOpen: false,
+    plansOpen: false,
+    editingPlanId: null,
+    planFormName: "",
+    planFormPrice: "",
+    planFormType: "one_time",
+    planPickerFor: null,
+    telegramChatIds: {},
+    telegramSheetOpen: false,
+    telegramDraft: "",
   };
 }
 
@@ -195,17 +262,6 @@ export function useSorthehelp(
 ) {
   const [s, setS] = useState<State>(() => makeInitialState(startScreen));
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setS((prev) =>
-        prev.screen === "otp" && prev.resend > 0
-          ? { ...prev, resend: prev.resend - 1 }
-          : prev,
-      );
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -309,7 +365,19 @@ export function useSorthehelp(
     );
   };
 
-  const openAdd = () => setS((prev) => ({ ...prev, addOpen: true }));
+  const openAdd = () =>
+    setS((prev) => {
+      const firstPlan = prev.plans.find((p) => p.group === prev.group);
+      return {
+        ...prev,
+        addOpen: true,
+        newPlanId: firstPlan ? firstPlan.id : "custom",
+        newPlanFormOpen: false,
+        newPlanName: "",
+        newPlanPrice: "",
+        newPlanType: "one_time",
+      };
+    });
   const closeAdd = () =>
     setS((prev) => ({
       ...prev,
@@ -318,13 +386,65 @@ export function useSorthehelp(
       newPhone: "",
       newAmount: "",
       newType: "one_time",
+      newPlanId: null,
+      newPlanFormOpen: false,
+      newPlanName: "",
+      newPlanPrice: "",
     }));
+  const pickNewMemberPlan = (id: number | "custom") =>
+    setS((prev) => ({ ...prev, newPlanId: id, newPlanFormOpen: false }));
+  const toggleNewPlanForm = () =>
+    setS((prev) => ({
+      ...prev,
+      newPlanFormOpen: !prev.newPlanFormOpen,
+      newPlanName: "",
+      newPlanPrice: "",
+    }));
+  const createInlinePlan = () => {
+    if (!s.newPlanName.trim()) {
+      say("Name the plan first");
+      return;
+    }
+    const price = Number(s.newPlanPrice) || 0;
+    if (price <= 0) {
+      say("Set a price for the plan");
+      return;
+    }
+    setS((prev) => {
+      const nextId = prev.plans.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+      const plan: Plan = {
+        id: nextId,
+        group: prev.group,
+        name: prev.newPlanName.trim(),
+        price,
+        type: prev.newPlanType,
+      };
+      return {
+        ...prev,
+        plans: [...prev.plans, plan],
+        newPlanId: nextId,
+        newPlanFormOpen: false,
+        newPlanName: "",
+        newPlanPrice: "",
+      };
+    });
+    say("Plan created");
+  };
   const confirmAdd = () => {
     if (!s.newName.trim()) {
       say("Add a name first");
       return;
     }
-    const amount = Number(s.newAmount) || 0;
+    const usingPlan =
+      typeof s.newPlanId === "number"
+        ? s.plans.find((p) => p.id === s.newPlanId)
+        : null;
+    const amount = usingPlan ? usingPlan.price : Number(s.newAmount) || 0;
+    const type = usingPlan ? usingPlan.type : s.newType;
+    if (!usingPlan && amount <= 0) {
+      say("Set an amount first");
+      return;
+    }
     setS((prev) => {
       const nextId =
         prev.members.reduce((max, m) => Math.max(max, m.id), 0) + 1;
@@ -332,14 +452,14 @@ export function useSorthehelp(
         id: nextId,
         name: prev.newName.trim(),
         phone: prev.newPhone.trim(),
-        type: prev.newType,
+        type,
         amount,
         paidAmount: 0,
         note: prev.group,
         link: "",
         group: prev.group,
-        dueDate:
-          prev.newType === "recurring" ? Date.now() + 30 * DAY : undefined,
+        dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
+        planId: usingPlan ? usingPlan.id : null,
       };
       return {
         ...prev,
@@ -349,9 +469,193 @@ export function useSorthehelp(
         newPhone: "",
         newAmount: "",
         newType: "one_time",
+        newPlanId: null,
       };
     });
     say(s.newName.trim() + " added to " + s.group);
+  };
+
+  const openTelegramSettings = () =>
+    setS((prev) => ({
+      ...prev,
+      telegramSheetOpen: true,
+      telegramDraft: prev.telegramChatIds[prev.group] ?? "",
+    }));
+  const closeTelegramSettings = () =>
+    setS((prev) => ({ ...prev, telegramSheetOpen: false, telegramDraft: "" }));
+  const saveTelegramSettings = () => {
+    if (!s.telegramDraft.trim()) {
+      say("Paste a chat ID first");
+      return;
+    }
+    setS((prev) => ({
+      ...prev,
+      telegramChatIds: { ...prev.telegramChatIds, [prev.group]: prev.telegramDraft.trim() },
+      telegramSheetOpen: false,
+      telegramDraft: "",
+    }));
+    say("Telegram connected for " + s.group);
+  };
+  const disconnectTelegram = () => {
+    setS((prev) => {
+      const next = { ...prev.telegramChatIds };
+      delete next[prev.group];
+      return { ...prev, telegramChatIds: next, telegramSheetOpen: false, telegramDraft: "" };
+    });
+    say("Telegram disconnected for " + s.group);
+  };
+
+  const openPlans = () =>
+    setS((prev) => ({
+      ...prev,
+      plansOpen: true,
+      editingPlanId: null,
+      planFormName: "",
+      planFormPrice: "",
+      planFormType: "one_time",
+    }));
+  const closePlans = () =>
+    setS((prev) => ({
+      ...prev,
+      plansOpen: false,
+      editingPlanId: null,
+      planFormName: "",
+      planFormPrice: "",
+    }));
+  const startEditPlan = (id: number) => {
+    const plan = s.plans.find((p) => p.id === id);
+    if (!plan) return;
+    setS((prev) => ({
+      ...prev,
+      editingPlanId: id,
+      planFormName: plan.name,
+      planFormPrice: String(plan.price),
+      planFormType: plan.type,
+    }));
+  };
+  const cancelPlanEdit = () =>
+    setS((prev) => ({
+      ...prev,
+      editingPlanId: null,
+      planFormName: "",
+      planFormPrice: "",
+      planFormType: "one_time",
+    }));
+  const savePlan = () => {
+    if (!s.planFormName.trim()) {
+      say("Name the plan first");
+      return;
+    }
+    const price = Number(s.planFormPrice) || 0;
+    if (price <= 0) {
+      say("Set a price for the plan");
+      return;
+    }
+    const editingId = s.editingPlanId;
+    setS((prev) => {
+      if (editingId === null) {
+        const nextId =
+          prev.plans.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+        const plan: Plan = {
+          id: nextId,
+          group: prev.group,
+          name: prev.planFormName.trim(),
+          price,
+          type: prev.planFormType,
+        };
+        return {
+          ...prev,
+          plans: [...prev.plans, plan],
+          editingPlanId: null,
+          planFormName: "",
+          planFormPrice: "",
+          planFormType: "one_time",
+        };
+      }
+      return {
+        ...prev,
+        plans: prev.plans.map((p) =>
+          p.id === editingId
+            ? { ...p, name: prev.planFormName.trim(), price, type: prev.planFormType }
+            : p,
+        ),
+        members: prev.members.map((m) =>
+          m.planId === editingId
+            ? {
+                ...m,
+                amount: price,
+                type: prev.planFormType,
+                dueDate:
+                  prev.planFormType === "recurring" && !m.dueDate
+                    ? Date.now() + 30 * DAY
+                    : m.dueDate,
+              }
+            : m,
+        ),
+        editingPlanId: null,
+        planFormName: "",
+        planFormPrice: "",
+        planFormType: "one_time",
+      };
+    });
+    say(editingId === null ? "Plan created" : "Plan updated");
+  };
+  const deletePlan = (id: number) => {
+    setS((prev) => ({
+      ...prev,
+      plans: prev.plans.filter((p) => p.id !== id),
+      members: prev.members.map((m) =>
+        m.planId === id ? { ...m, planId: null } : m,
+      ),
+      planFilter: prev.planFilter === id ? "all" : prev.planFilter,
+      editingPlanId: prev.editingPlanId === id ? null : prev.editingPlanId,
+    }));
+    say("Plan removed");
+  };
+
+  const openPlanFilter = () => setS((prev) => ({ ...prev, planFilterOpen: true }));
+  const closePlanFilter = () =>
+    setS((prev) => ({ ...prev, planFilterOpen: false }));
+
+  const openPlanPicker = (id: number) =>
+    setS((prev) => ({ ...prev, planPickerFor: id }));
+  const closePlanPicker = () =>
+    setS((prev) => ({ ...prev, planPickerFor: null }));
+  const assignMemberPlan = (planId: number | "custom") => {
+    const id = s.planPickerFor;
+    if (id === null) return;
+    if (planId === "custom") {
+      setS((prev) => ({
+        ...prev,
+        members: prev.members.map((m) =>
+          m.id === id ? { ...m, planId: null } : m,
+        ),
+        planPickerFor: null,
+      }));
+      say("Switched to custom pricing");
+      return;
+    }
+    const plan = s.plans.find((p) => p.id === planId);
+    if (!plan) return;
+    setS((prev) => ({
+      ...prev,
+      members: prev.members.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              planId: plan.id,
+              amount: plan.price,
+              type: plan.type,
+              dueDate:
+                plan.type === "recurring"
+                  ? m.dueDate ?? Date.now() + 30 * DAY
+                  : undefined,
+            }
+          : m,
+      ),
+      planPickerFor: null,
+    }));
+    say("Moved to " + plan.name);
   };
 
   const openReminderEdit = () =>
@@ -433,7 +737,6 @@ export function useSorthehelp(
     "splash",
     "login",
     "signup",
-    "otp",
     "recover",
     "pin",
     "onboard",
@@ -450,10 +753,14 @@ export function useSorthehelp(
   });
 
   const q = s.query.trim().toLowerCase();
+  const planName = (planId: number | null) =>
+    planId === null ? null : s.plans.find((p) => p.id === planId)?.name ?? null;
+
   const visible = s.members
     .filter((m) => m.group === s.group)
     .filter((m) => s.filter === "all" || m.type === s.filter)
     .filter((m) => s.statusFilter === "all" || statusOf(m) === s.statusFilter)
+    .filter((m) => s.planFilter === "all" || m.planId === s.planFilter)
     .filter(
       (m) =>
         !q ||
@@ -469,6 +776,7 @@ export function useSorthehelp(
       id: m.id,
       name: m.name,
       note: m.note,
+      planLabel: planName(m.planId) ?? "Custom",
       typeLabel: m.type === "one_time" ? "one-time" : "recurring",
       badge,
       badgeBg,
@@ -545,12 +853,96 @@ export function useSorthehelp(
     border: s.filter === k ? INK : RULE,
   }));
 
+  const plansForGroup = s.plans.filter((p) => p.group === s.group);
+
+  const planFilterDefs = [
+    { id: "all" as number | "all", label: "All plans" },
+    ...plansForGroup.map((p) => ({ id: p.id as number | "all", label: p.name })),
+  ];
+  const planFilters = planFilterDefs.map((p) => ({
+    label: p.label,
+    tap: () =>
+      setS((prev) => ({ ...prev, planFilter: p.id, planFilterOpen: false })),
+    active: s.planFilter === p.id,
+  }));
+  const planFilterLabel =
+    planFilterDefs.find((p) => p.id === s.planFilter)?.label ?? "All plans";
+
+  const pickerMember = s.members.find((m) => m.id === s.planPickerFor) || null;
+  const planPickerOptions = pickerMember
+    ? [
+        ...s.plans
+          .filter((p) => p.group === pickerMember.group)
+          .map((p) => ({
+            id: p.id as number | "custom",
+            label: p.name,
+            sub:
+              naira(p.price) + (p.type === "recurring" ? " · 30 days" : " · once"),
+          })),
+        {
+          id: "custom" as number | "custom",
+          label: "Custom",
+          sub: naira(pickerMember.amount) + " · current amount",
+        },
+      ].map((p) => ({
+        label: p.label,
+        sub: p.sub,
+        tap: () => assignMemberPlan(p.id),
+        active: p.id === "custom" ? pickerMember.planId === null : pickerMember.planId === p.id,
+        bg:
+          (p.id === "custom" ? pickerMember.planId === null : pickerMember.planId === p.id)
+            ? INK
+            : "transparent",
+        fg:
+          (p.id === "custom" ? pickerMember.planId === null : pickerMember.planId === p.id)
+            ? "#EFE7D3"
+            : INK,
+        subFg:
+          (p.id === "custom" ? pickerMember.planId === null : pickerMember.planId === p.id)
+            ? "#D6C69A"
+            : SOFT,
+        border:
+          (p.id === "custom" ? pickerMember.planId === null : pickerMember.planId === p.id)
+            ? INK
+            : RULE,
+      }))
+    : [];
+
+  const newMemberPlans = [
+    ...plansForGroup.map((p) => ({
+      id: p.id as number | "custom",
+      label: p.name,
+      sub: naira(p.price) + (p.type === "recurring" ? " · 30 days" : " · once"),
+    })),
+    { id: "custom" as number | "custom", label: "Custom", sub: "Set a one-off amount" },
+  ].map((p) => ({
+    label: p.label,
+    sub: p.sub,
+    tap: () => pickNewMemberPlan(p.id),
+    active: s.newPlanId === p.id,
+    bg: s.newPlanId === p.id ? INK : "transparent",
+    fg: s.newPlanId === p.id ? "#EFE7D3" : INK,
+    subFg: s.newPlanId === p.id ? "#D6C69A" : SOFT,
+    border: s.newPlanId === p.id ? INK : RULE,
+  }));
+
+  const planManageRows = plansForGroup.map((p) => ({
+    id: p.id,
+    name: p.name,
+    priceLabel: naira(p.price) + (p.type === "recurring" ? " · every 30 days" : " · one-time"),
+    memberCount: s.members.filter((m) => m.planId === p.id).length,
+    editing: s.editingPlanId === p.id,
+    edit: () => startEditPlan(p.id),
+    remove: () => deletePlan(p.id),
+  }));
+
   const selMember = s.members.find((x) => x.id === s.selId) || s.members[0];
   const selStatus = statusOf(selMember);
   const [selBadge, selBadgeBg, selBadgeFg] = badgeOf(selStatus, selMember);
   const sel = {
     name: selMember.name,
     note: selMember.note,
+    planLabel: planName(selMember.planId) ?? "Custom",
     typeLabel: selMember.type === "one_time" ? "one-time" : "recurring",
     badge: selBadge,
     badgeBg: selBadgeBg,
@@ -704,9 +1096,9 @@ export function useSorthehelp(
 
   const settingRows = [
     {
-      title: "Phone number",
+      title: "Email or phone",
       sub: "Used to sign in",
-      value: "+234 801 234 5678",
+      value: s.identifier || "amaka@example.com",
       valueColor: SOFT,
       tap: go.pin,
     },
@@ -719,10 +1111,10 @@ export function useSorthehelp(
     },
     {
       title: "Telegram bot",
-      sub: "For automatic invite links",
-      value: "v2",
+      sub: "Connected per group — open a group's Telegram setting",
+      value: "Per group",
       valueColor: FAINT,
-      tap: () => say("Automatic links arrive with the backend (v2)"),
+      tap: () => say("Open a group on the Members tab, then tap Telegram"),
     },
     {
       title: "Reminder message",
@@ -791,16 +1183,6 @@ export function useSorthehelp(
     },
   ];
 
-  const digits = "482913";
-  const otpCells = s.otp.map((ch, i) => ({
-    ch: ch || "·",
-    tap: () =>
-      setS((prev) => {
-        const o = prev.otp.slice();
-        o[i] = digits[i];
-        return { ...prev, otp: o };
-      }),
-  }));
   const pinCells = s.pin.map((ch, i) => ({
     ch: ch ? "•" : "·",
     tap: () =>
@@ -812,7 +1194,7 @@ export function useSorthehelp(
   }));
   const pinCells2 = s.pin2.map((ch) => ({ ch: ch ? "•" : "·" }));
 
-  const phoneDisplay = s.phone ? "+234 " + s.phone : "+234 801 234 5678";
+  const identifierDisplay = s.identifier || "amaka@example.com";
 
   return {
     go,
@@ -824,7 +1206,6 @@ export function useSorthehelp(
     isSplash: scr === "splash",
     isLogin: scr === "login",
     isSignup: scr === "signup",
-    isOtp: scr === "otp",
     isRecover: scr === "recover",
     isPin: scr === "pin",
     isObSteps: scr === "onboard" && variant === "steps",
@@ -844,33 +1225,47 @@ export function useSorthehelp(
     isSettings: scr === "settings",
     isPaywall: scr === "paywall",
 
-    phone: s.phone,
-    onPhone: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setS((prev) => ({ ...prev, phone: e.target.value })),
+    identifier: s.identifier,
+    onIdentifier: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setS((prev) => ({ ...prev, identifier: e.target.value })),
+    password: s.password,
+    onPassword: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setS((prev) => ({ ...prev, password: e.target.value })),
     ownerName: s.ownerName,
     onOwner: (e: React.ChangeEvent<HTMLInputElement>) =>
       setS((prev) => ({ ...prev, ownerName: e.target.value })),
     ownerNameOut: s.ownerName || "Amaka Nwosu",
     termsMark: s.terms ? "✓" : "",
     toggleTerms: () => setS((prev) => ({ ...prev, terms: !prev.terms })),
-    phoneDisplay,
-    otpCells,
+    identifierDisplay,
     pinCells,
     pinCells2,
-    resendIn: "0:" + String(Math.max(s.resend, 0)).padStart(2, "0"),
-    fillCode: () => setS((prev) => ({ ...prev, otp: digits.split("") })),
-    sendCodeNew: () =>
-      setS((prev) => ({ ...prev, screen: "otp", isNew: true, resend: 24 })),
-    sendCodeReturning: () =>
-      setS((prev) => ({ ...prev, screen: "otp", isNew: false, resend: 24 })),
-    verify: () =>
-      s.isNew
-        ? setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }))
-        : setS((prev) => ({ ...prev, screen: "ledger" })),
-    verifyCta: s.isNew ? "Verify and set up" : "Verify and open Sorthehelp",
-    otpNote: s.isNew
-      ? "New account · we will set your first group up next"
-      : "Signing back in · your book is where you left it",
+    loginWithPassword: () => {
+      if (!s.identifier.trim() || !s.password) {
+        say("Enter your email/phone and password");
+        return;
+      }
+      setS((prev) => ({ ...prev, screen: "ledger" }));
+    },
+    signupWithPassword: () => {
+      if (!s.identifier.trim()) {
+        say("Add an email or phone number");
+        return;
+      }
+      if (s.password.length < 8) {
+        say("Password must be at least 8 characters");
+        return;
+      }
+      if (!s.terms) {
+        say("Agree to the terms to continue");
+        return;
+      }
+      setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }));
+    },
+    forgotPassword: () => {
+      say("Reset link sent — check your email");
+      setS((prev) => ({ ...prev, screen: "login" }));
+    },
 
     obStep: s.obStep,
     obBars,
@@ -981,6 +1376,60 @@ export function useSorthehelp(
     setNewAmount: (v: string) => setS((prev) => ({ ...prev, newAmount: v })),
     newType: s.newType,
     pickType: (t: MemberType) => setS((prev) => ({ ...prev, newType: t })),
+    newMemberPlans,
+    newPlanIsCustom: s.newPlanId === "custom",
+    newPlanFormOpen: s.newPlanFormOpen,
+    toggleNewPlanForm,
+    newPlanName: s.newPlanName,
+    setNewPlanName: (v: string) =>
+      setS((prev) => ({ ...prev, newPlanName: v })),
+    newPlanPrice: s.newPlanPrice,
+    setNewPlanPrice: (v: string) =>
+      setS((prev) => ({ ...prev, newPlanPrice: v })),
+    newPlanType: s.newPlanType,
+    pickNewPlanType: (t: MemberType) =>
+      setS((prev) => ({ ...prev, newPlanType: t })),
+    createInlinePlan,
+
+    telegramConnected: Boolean(s.telegramChatIds[s.group]),
+    telegramChatIdLabel: s.telegramChatIds[s.group] || "Not connected",
+    telegramSheetOpen: s.telegramSheetOpen,
+    openTelegramSettings,
+    closeTelegramSettings,
+    telegramDraft: s.telegramDraft,
+    setTelegramDraft: (v: string) =>
+      setS((prev) => ({ ...prev, telegramDraft: v })),
+    saveTelegramSettings,
+    disconnectTelegram,
+
+    planFilters,
+    planFilterLabel,
+    planFilterOpen: s.planFilterOpen,
+    openPlanFilter,
+    closePlanFilter,
+    plansOpen: s.plansOpen,
+    openPlans,
+    closePlans,
+    planManageRows,
+    isEditingPlan: s.editingPlanId !== null,
+    planFormName: s.planFormName,
+    setPlanFormName: (v: string) =>
+      setS((prev) => ({ ...prev, planFormName: v })),
+    planFormPrice: s.planFormPrice,
+    setPlanFormPrice: (v: string) =>
+      setS((prev) => ({ ...prev, planFormPrice: v })),
+    planFormType: s.planFormType,
+    pickPlanFormType: (t: MemberType) =>
+      setS((prev) => ({ ...prev, planFormType: t })),
+    savePlan,
+    cancelPlanEdit,
+
+    selId: s.selId,
+    planPickerFor: s.planPickerFor,
+    planPickerName: pickerMember ? pickerMember.name : "",
+    planPickerOptions,
+    openPlanPicker,
+    closePlanPicker,
 
     payFor: s.payFor,
     payAmount: s.payAmount,

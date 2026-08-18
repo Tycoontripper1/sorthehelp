@@ -58,41 +58,44 @@ export function Login({ v }: { v: SorthehelpVals }): React.JSX.Element {
               "display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin-bottom:6px",
             )}
           >
-            Phone number
+            Email or phone
           </label>
-          <div
+          <input
+            type="text"
+            value={v.identifier}
+            onChange={v.onIdentifier}
+            placeholder="amaka@example.com"
             style={css(
-              "display:flex;align-items:stretch;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;overflow:hidden",
+              "width:100%;box-sizing:border-box;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.02em;color:#202A33;outline:none",
+            )}
+          />
+          <label
+            style={css(
+              "display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin:14px 0 6px",
             )}
           >
-            <span
-              style={css(
-                "display:flex;align-items:center;padding:0 11px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#6b6455;background:#E6DBBE;border-right:1px solid #D6C69A",
-              )}
-            >
-              +234
-            </span>
-            <input
-              type="tel"
-              value={v.phone}
-              onChange={v.onPhone}
-              placeholder="801 234 5678"
-              style={css(
-                "flex:1;min-width:0;border:none;background:transparent;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.04em;color:#202A33;outline:none",
-              )}
-            />
-          </div>
+            Password
+          </label>
+          <input
+            type="password"
+            value={v.password}
+            onChange={v.onPassword}
+            placeholder="••••••••"
+            style={css(
+              "width:100%;box-sizing:border-box;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.02em;color:#202A33;outline:none",
+            )}
+          />
           <div style={css("font-size:11.5px;color:#9c9484;margin-top:7px")}>
-            We&apos;ll text a 6-digit code. No password to forget.
+            Use the email or phone number you signed up with.
           </div>
           <button
             type="button"
-            onClick={v.sendCodeReturning}
+            onClick={v.loginWithPassword}
             style={css(
               "width:100%;margin-top:16px;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
             )}
           >
-            Send me a code
+            Sign in
           </button>
           <div
             style={css(

@@ -1,0 +1,60 @@
+import { env } from "../lib/env";
+
+interface SendEmailInput {
+  to: string;
+  toName?: string;
+  subject: string;
+  html: string;
+}
+
+/**
+ * Sends via Zeptomail's HTTP API (https://api.zeptomail.com/v1.1/email).
+ * With no ZEPTOMAIL_API_KEY configured (the default in dev), this logs the
+ * email instead of sending it, so the auth flow stays testable without a
+ * real account. Wire up a key from https://www.zoho.com/zeptomail/ to go live.
+ */
+async function sendEmail({ to, toName, subject, html }: SendEmailInput): Promise<void> {
+  if (!env.ZEPTOMAIL_API_KEY) {
+    console.log(`[email:dev] to=${to} subject="${subject}"\n${html}`);
+    return;
+  }
+
+  const res = await fetch("https://api.zeptomail.com/v1.1/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: env.ZEPTOMAIL_API_KEY,
+    },
+    body: JSON.stringify({
+      from: { address: env.ZEPTOMAIL_FROM_EMAIL, name: env.ZEPTOMAIL_FROM_NAME },
+      to: [{ email_address: { address: to, name: toName ?? to } }],
+      subject,
+      htmlbody: html,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error(`[email] Zeptomail send failed (${res.status}): ${body}`);
+    // Don't throw — a delivery failure shouldn't break signup/login. The
+    // token is still valid and the user can request a resend.
+  }
+}
+
+export function sendVerificationEmail(to: string, name: string | null, link: string) {
+  return sendEmail({
+    to,
+    toName: name ?? undefined,
+    subject: "Verify your Sorthehelp account",
+    html: `<p>Hi ${name ?? "there"},</p><p>Confirm this is your email address:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
+  });
+}
+
+export function sendPasswordResetEmail(to: string, name: string | null, link: string) {
+  return sendEmail({
+    to,
+    toName: name ?? undefined,
+    subject: "Reset your Sorthehelp password",
+    html: `<p>Hi ${name ?? "there"},</p><p>Reset your password here:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>`,
+  });
+}

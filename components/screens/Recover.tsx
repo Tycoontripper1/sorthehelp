@@ -42,30 +42,16 @@ export function Recover({ v }: { v: SorthehelpVals }): React.JSX.Element {
       >
         <button
           type="button"
-          onClick={v.go.otp}
+          onClick={v.forgotPassword}
           style={css(
             "width:100%;text-align:left;display:block;border:none;border-bottom:1px dashed #D6C69A;background:none;padding:14px 16px;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
           )}
         >
           <div style={css("font-size:14.5px;font-weight:600;color:#202A33")}>
-            The code never arrived
+            I forgot my password
           </div>
           <div style={css("font-size:12px;color:#6b6455;margin-top:3px")}>
-            Resend by SMS, or get it on WhatsApp instead
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={v.go.login}
-          style={css(
-            "width:100%;text-align:left;display:block;border:none;border-bottom:1px dashed #D6C69A;background:none;padding:14px 16px;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
-          )}
-        >
-          <div style={css("font-size:14.5px;font-weight:600;color:#202A33")}>
-            I changed my phone number
-          </div>
-          <div style={css("font-size:12px;color:#6b6455;margin-top:3px")}>
-            Verify with Google instead, then update the number
+            We&apos;ll email a reset link
           </div>
         </button>
         <button

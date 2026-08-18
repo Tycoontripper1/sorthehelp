@@ -32,7 +32,7 @@ export function MemberDetail({ v }: { v: SorthehelpVals }): React.JSX.Element {
             {sel.name}
           </div>
           <div style={css("font-size:12.5px;color:#6b6455;margin-top:3px")}>
-            {sel.note} ·{" "}
+            {sel.planLabel} ·{" "}
             <span
               style={css(
                 "font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#9c9484",
@@ -95,6 +95,33 @@ export function MemberDetail({ v }: { v: SorthehelpVals }): React.JSX.Element {
             {sel.dueShort}
           </div>
         </div>
+      </div>
+      <div
+        style={css(
+          "display:flex;justify-content:space-between;align-items:center;background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;padding:12px 14px;margin-top:8px",
+        )}
+      >
+        <div>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:#6b6455",
+            )}
+          >
+            Plan
+          </div>
+          <div style={css("font-size:14px;font-weight:600;margin-top:3px")}>
+            {sel.planLabel}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => v.openPlanPicker(v.selId)}
+          style={css(
+            "border:1px solid #D6C69A;background:#fff;color:#202A33;border-radius:4px;padding:8px 12px;font-family:Inter,sans-serif;font-size:12.5px;font-weight:600;cursor:pointer",
+          )}
+        >
+          Change
+        </button>
       </div>
       {sel.showPart && (
         <div

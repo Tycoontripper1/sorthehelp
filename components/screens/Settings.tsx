@@ -40,7 +40,7 @@ export function Settings({ v }: { v: SorthehelpVals }): React.JSX.Element {
               "font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6b6455;margin-top:2px",
             )}
           >
-            {v.phoneDisplay}
+            {v.identifierDisplay}
           </div>
         </div>
         <span

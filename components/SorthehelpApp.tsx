@@ -8,7 +8,6 @@ import {
 import { Splash } from "./screens/Splash";
 import { Login } from "./screens/Login";
 import { Signup } from "./screens/Signup";
-import { Otp } from "./screens/Otp";
 import { Recover } from "./screens/Recover";
 import { Pin } from "./screens/Pin";
 import { OnboardSteps } from "./screens/OnboardSteps";
@@ -49,7 +48,6 @@ export function SorthehelpApp({
       {v.isSplash && <Splash v={v} />}
       {v.isLogin && <Login v={v} />}
       {v.isSignup && <Signup v={v} />}
-      {v.isOtp && <Otp v={v} />}
       {v.isRecover && <Recover v={v} />}
       {v.isPin && <Pin v={v} />}
       {v.isObSteps && <OnboardSteps v={v} />}
