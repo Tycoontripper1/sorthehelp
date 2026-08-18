@@ -820,6 +820,21 @@ export function useSorthehelp(
   const inGroup = s.members.filter((m) => m.group === s.group);
   const count = (st: MemberStatus) =>
     inGroup.filter((m) => statusOf(m) === st).length;
+  const notificationCount = s.members.filter((m) => {
+    const st = statusOf(m);
+    return st === "due" || st === "lapsed";
+  }).length;
+  const openNotifications = () => {
+    if (notificationCount === 0) {
+      say("You're all caught up — nothing due or lapsed");
+      return;
+    }
+    say(
+      notificationCount +
+        (notificationCount === 1 ? " member needs" : " members need") +
+        " a reminder — due or lapsed",
+    );
+  };
   const groupCollected = inGroup.reduce((sum, m) => sum + m.paidAmount, 0);
   const groupTarget = inGroup.reduce((sum, m) => sum + m.amount, 0);
   const groupPercent =
@@ -1329,6 +1344,8 @@ export function useSorthehelp(
     groupCollectedLabel: naira(groupCollected),
     groupTargetLabel: naira(groupTarget),
     groupPercent,
+    notificationCount,
+    openNotifications,
     stats,
     query: s.query,
     onQuery: (e: React.ChangeEvent<HTMLInputElement>) =>
