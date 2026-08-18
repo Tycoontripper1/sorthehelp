@@ -334,7 +334,7 @@ export function useSorthehelp(
       return ["Pending", "#ECE7DA", FAINT];
     }
     if (st === "lapsed") return ["Lapsed", "#F0DCD3", "#8C4A3A"];
-    if (st === "due") return ["Due soon", "#F3E7CB", "#A9781F"];
+    if (st === "due") return ["Due soon", "#F9E3CC", "#BC6C25"];
     return ["Active", "#E3ECE3", "#3F6B4F"];
   };
 
@@ -820,10 +820,14 @@ export function useSorthehelp(
   const inGroup = s.members.filter((m) => m.group === s.group);
   const count = (st: MemberStatus) =>
     inGroup.filter((m) => statusOf(m) === st).length;
+  const groupCollected = inGroup.reduce((sum, m) => sum + m.paidAmount, 0);
+  const groupTarget = inGroup.reduce((sum, m) => sum + m.amount, 0);
+  const groupPercent =
+    groupTarget > 0 ? Math.round((groupCollected / groupTarget) * 100) : 0;
   const statDef: [MemberStatus, string, string][] = [
     ["active", "Active", "#3F6B4F"],
     ["part", "Part", "#2E5C8A"],
-    ["due", "Due", "#A9781F"],
+    ["due", "Due", "#BC6C25"],
     ["lapsed", "Lapsed", "#8C4A3A"],
     ["pending", "Pending", FAINT],
   ];
@@ -1048,7 +1052,7 @@ export function useSorthehelp(
       dueColor = "#8C4A3A";
     } else if (dueN > 0) {
       dueNote = dueN + " due soon";
-      dueColor = "#A9781F";
+      dueColor = "#BC6C25";
     } else if (partN > 0) {
       dueNote = partN + " part paid";
       dueColor = "#2E5C8A";
@@ -1322,6 +1326,9 @@ export function useSorthehelp(
     checkDone,
 
     revenue: naira(s.revenue),
+    groupCollectedLabel: naira(groupCollected),
+    groupTargetLabel: naira(groupTarget),
+    groupPercent,
     stats,
     query: s.query,
     onQuery: (e: React.ChangeEvent<HTMLInputElement>) =>

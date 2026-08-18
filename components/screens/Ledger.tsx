@@ -12,7 +12,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
         )}
       >
         <div>
-          <div
+          {/* <div
             style={css(
               "font-family:Fraunces,serif;font-weight:600;font-size:27px;letter-spacing:-.01em",
             )}
@@ -21,7 +21,7 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
             <em style={css("font-style:italic;font-weight:500;color:#A6314A")}>
               help
             </em>
-          </div>
+          </div> */}
           <div style={css("display:flex;gap:6px;margin-top:7px")}>
             <button
               type="button"
@@ -69,23 +69,68 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
       </div>
       <div
         style={css(
-          "display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #202A33;border-bottom:1px solid #D6C69A;padding:10px 2px;margin-top:20px",
+          "display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:2px solid #202A33;border-bottom:1px solid #D6C69A;padding:14px 2px;margin-top:20px",
         )}
       >
-        <span
-          style={css(
-            "font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b6455",
-          )}
-        >
-          Total collected
-        </span>
-        <span
-          style={css(
-            "font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A6314A",
-          )}
-        >
-          {v.revenue}
-        </span>
+        <div>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b6455",
+            )}
+          >
+            Total collected
+          </div>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A6314A;margin-top:3px",
+            )}
+          >
+            {v.groupCollectedLabel}
+          </div>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9c9484;margin-top:2px",
+            )}
+          >
+            of {v.groupTargetLabel} expected
+          </div>
+        </div>
+        <div style={css("position:relative;width:60px;height:60px;flex:none")}>
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle
+              cx="30"
+              cy="30"
+              r="26"
+              fill="none"
+              stroke="#D6C69A"
+              strokeWidth="6"
+            />
+            <circle
+              cx="30"
+              cy="30"
+              r="26"
+              fill="none"
+              stroke="#3F6B4F"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 26}
+              strokeDashoffset={
+                2 *
+                Math.PI *
+                26 *
+                (1 - Math.min(100, Math.max(0, v.groupPercent || 0)) / 100)
+              }
+              transform="rotate(-90 30 30)"
+            />
+          </svg>
+          <span
+            style={css(
+              "position:absolute;top:0;left:0;width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#202A33",
+            )}
+          >
+            {v.groupPercent || 0}%
+          </span>
+        </div>
       </div>
       <div
         style={css(
@@ -893,19 +938,23 @@ export function Ledger({ v }: { v: SorthehelpVals }) {
                 "background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;padding:13px 14px;margin-bottom:16px",
               )}
             >
-              <div style={css("font-size:13px;font-weight:600;margin-bottom:6px")}>
+              <div
+                style={css("font-size:13px;font-weight:600;margin-bottom:6px")}
+              >
                 How this works
               </div>
-              <div style={css("font-size:12.5px;color:#6b6455;line-height:1.6")}>
-                1. Add your Sorthehelp bot as admin to your Telegram group,
-                with permission to invite users via link.
+              <div
+                style={css("font-size:12.5px;color:#6b6455;line-height:1.6")}
+              >
+                1. Add your Sorthehelp bot as admin to your Telegram group, with
+                permission to invite users via link.
                 <br />
-                2. Get the group&apos;s chat ID — forward any message from it
-                to a helper bot like @userinfobot.
+                2. Get the group&apos;s chat ID — forward any message from it to
+                a helper bot like @userinfobot.
                 <br />
-                3. Paste that chat ID below. Once connected, single-use
-                invite links are generated automatically when a member&apos;s
-                balance clears.
+                3. Paste that chat ID below. Once connected, single-use invite
+                links are generated automatically when a member&apos;s balance
+                clears.
               </div>
             </div>
             <label
