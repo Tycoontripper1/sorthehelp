@@ -2,6 +2,7 @@
 
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
+import React from "react";
 import { Ledger } from "./Ledger";
 import { Empty } from "./Empty";
 import { MemberDetail } from "./MemberDetail";
@@ -9,7 +10,7 @@ import { Groups } from "./Groups";
 import { Settings } from "./Settings";
 import { Paywall } from "./Paywall";
 
-export function AppShell({ v }: { v: SorthehelpVals }) {
+export function AppShell({ v }: { v: SorthehelpVals }): React.JSX.Element {
   return (
     <div
       style={css(

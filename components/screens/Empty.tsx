@@ -3,7 +3,9 @@
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
 
-export function Empty({ v }: { v: SorthehelpVals }) {
+import React from "react";
+
+export function Empty({ v }: { v: SorthehelpVals }): React.JSX.Element {
   return (
     <div>
       <div

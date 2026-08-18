@@ -14,6 +14,7 @@ import { Pin } from "./screens/Pin";
 import { OnboardSteps } from "./screens/OnboardSteps";
 import { OnboardChecklist } from "./screens/OnboardChecklist";
 import { AppShell } from "./screens/AppShell";
+import React from "react";
 
 export function SorthehelpApp({
   startScreen = "splash",
@@ -21,7 +22,7 @@ export function SorthehelpApp({
 }: {
   startScreen?: Screen;
   onboardingVariant?: OnboardingVariant;
-}) {
+}): React.JSX.Element {
   const v = useSorthehelp(startScreen, onboardingVariant);
 
   return (
