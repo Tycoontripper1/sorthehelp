@@ -57,6 +57,11 @@ export const setPinSchema = z.object({
 });
 export type TSetPinPayload = z.infer<typeof setPinSchema>;
 
+export const googleSignInSchema = z.object({
+  idToken: z.string().min(1, "Missing Google credential"),
+});
+export type TGoogleSignInPayload = z.infer<typeof googleSignInSchema>;
+
 export const updateMeSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   payoutAccount: z.string().trim().max(200).optional(),

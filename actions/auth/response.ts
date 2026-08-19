@@ -14,4 +14,5 @@ export interface IOwner {
 export interface IAuthResponseData {
   token: string;
   owner: IOwner;
+  isNewOwner?: boolean;
 }

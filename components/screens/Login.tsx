@@ -2,6 +2,7 @@
 
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 
 import React from "react";
 
@@ -113,20 +114,7 @@ export function Login({ v }: { v: SorthehelpVals }): React.JSX.Element {
             </span>
             <div style={css("flex:1;height:1px;background:#D6C69A")} />
           </div>
-          <button
-            type="button"
-            onClick={v.go.ledger}
-            style={css(
-              "width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #D6C69A;background:#fff;color:#202A33;border-radius:5px;padding:13px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
-            )}
-          >
-            <span
-              style={css(
-                "width:18px;height:18px;border-radius:50%;background:conic-gradient(#EA4335 0 25%,#FBBC05 0 50%,#34A853 0 75%,#4285F4 0);display:inline-block",
-              )}
-            />
-            Continue with Google
-          </button>
+          <GoogleAuthButton text="signin_with" onIdToken={v.googleAuth} />
         </div>
         <div
           style={css(

@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   useSorthehelp,
   type Screen,
@@ -23,8 +24,9 @@ export function SorthehelpApp({
   onboardingVariant?: OnboardingVariant;
 }): React.JSX.Element {
   const v = useSorthehelp(startScreen, onboardingVariant);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  return (
+  const app = (
     <div
       style={{
         position: "fixed",
@@ -53,5 +55,11 @@ export function SorthehelpApp({
       {v.isObSteps && <OnboardSteps v={v} />}
       {v.isApp && <AppShell v={v} />}
     </div>
+  );
+
+  return googleClientId ? (
+    <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
+  ) : (
+    app
   );
 }

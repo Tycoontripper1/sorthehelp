@@ -14,6 +14,7 @@ import {
   setPinRequest,
   getMeRequest,
   updateMeRequest,
+  googleSignInRequest,
 } from "./api";
 import type { IOwner } from "./response";
 import {
@@ -24,6 +25,7 @@ import {
   verifyPinSchema,
   setPinSchema,
   updateMeSchema,
+  googleSignInSchema,
 } from "./zod-schema";
 
 const COOKIE_NAME = "sth_token";
@@ -84,6 +86,22 @@ export async function loginAction(
     return { ok: true, data: { owner } };
   } catch (error) {
     return fail(error, "Could not log you in");
+  }
+}
+
+export async function googleSignInAction(
+  input: unknown,
+): Promise<ActionResult<{ owner: IOwner; isNewOwner: boolean }>> {
+  const parsed = googleSignInSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Missing Google credential" };
+  }
+  try {
+    const { token, owner, isNewOwner } = await googleSignInRequest(parsed.data);
+    await setAuthCookie(token);
+    return { ok: true, data: { owner, isNewOwner: Boolean(isNewOwner) } };
+  } catch (error) {
+    return fail(error, "Could not sign in with Google");
   }
 }
 

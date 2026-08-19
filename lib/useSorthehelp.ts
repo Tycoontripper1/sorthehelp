@@ -9,6 +9,7 @@ import {
   logoutAction,
   getSessionAction,
   updateMeAction,
+  googleSignInAction,
   type IOwner,
 } from "@/actions/auth";
 import type { ActionResult } from "@/actions/common";
@@ -1360,6 +1361,22 @@ export function useSorthehelp(
       });
       setS((prev) => ({ ...prev, authPending: false }));
       if (result.ok) setS((prev) => ({ ...prev, screen: "login" }));
+    },
+    googleAuth: async (idToken: string) => {
+      setS((prev) => ({ ...prev, authPending: true }));
+      const result = await withToast(googleSignInAction({ idToken }), {
+        loading: "Signing in with Google…",
+        success: (data) =>
+          "Welcome" + (data.owner.name ? ", " + data.owner.name : ""),
+      });
+      setS((prev) => ({ ...prev, authPending: false }));
+      if (!result.ok) return;
+      setS((prev) => ({
+        ...prev,
+        owner: result.data.owner,
+        screen: result.data.isNewOwner ? "onboard" : "ledger",
+        obStep: result.data.isNewOwner ? 1 : prev.obStep,
+      }));
     },
 
     obStep: s.obStep,

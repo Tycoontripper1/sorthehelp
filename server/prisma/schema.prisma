@@ -33,7 +33,8 @@ model Owner {
   email           String?   @unique
   phone           String?   @unique
   name            String?
-  passwordHash    String
+  passwordHash    String?
+  googleId        String?   @unique
   emailVerifiedAt DateTime?
   pinHash         String?
   payoutAccount   String?

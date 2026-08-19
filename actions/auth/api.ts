@@ -15,6 +15,7 @@ import type {
   TVerifyPinPayload,
   TSetPinPayload,
   TUpdateMePayload,
+  TGoogleSignInPayload,
 } from "./zod-schema";
 
 export function signupRequest(payload: TSignupPayload) {
@@ -28,6 +29,14 @@ export function signupRequest(payload: TSignupPayload) {
 export function loginRequest(payload: TLoginPayload) {
   return apiRequest<IAuthResponseData>({
     path: "/auth/login",
+    method: ApiMethodEnum.POST,
+    body: payload,
+  });
+}
+
+export function googleSignInRequest(payload: TGoogleSignInPayload) {
+  return apiRequest<IAuthResponseData>({
+    path: "/auth/google",
     method: ApiMethodEnum.POST,
     body: payload,
   });
