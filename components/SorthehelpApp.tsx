@@ -52,30 +52,6 @@ export function SorthehelpApp({
       {v.isPin && <Pin v={v} />}
       {v.isObSteps && <OnboardSteps v={v} />}
       {v.isApp && <AppShell v={v} />}
-
-      {v.toast && (
-        <div
-          style={{
-            position: "fixed",
-            top: "18px",
-            left: "50%",
-            background: "#202A33",
-            color: "#EFE7D3",
-            padding: "11px 18px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontFamily: "Inter,sans-serif",
-            boxShadow: "0 10px 24px rgba(0,0,0,.25)",
-            zIndex: 80,
-            maxWidth: "88%",
-            textAlign: "center",
-            animation: "toastIn .3s cubic-bezier(.2,.9,.3,1.2) forwards",
-            transform: "translateX(-50%)",
-          }}
-        >
-          {v.toast}
-        </div>
-      )}
     </div>
   );
 }

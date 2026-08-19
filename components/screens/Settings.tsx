@@ -2,6 +2,7 @@
 
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
+import { SignOutDialog } from "@/components/modals";
 
 import React from "react";
 
@@ -45,10 +46,12 @@ export function Settings({ v }: { v: SorthehelpVals }): React.JSX.Element {
         </div>
         <span
           style={css(
-            "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#3F6B4F;background:#E3ECE3;border-radius:3px;padding:3px 7px",
+            v.emailVerified
+              ? "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#3F6B4F;background:#E3ECE3;border-radius:3px;padding:3px 7px"
+              : "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#A9781F;background:#F3E7CB;border-radius:3px;padding:3px 7px",
           )}
         >
-          Verified
+          {v.emailVerified ? "Verified" : "Unverified"}
         </span>
       </div>
       <div
@@ -118,15 +121,7 @@ export function Settings({ v }: { v: SorthehelpVals }): React.JSX.Element {
           />
         </button>
       </div>
-      <button
-        type="button"
-        onClick={v.go.splash}
-        style={css(
-          "width:100%;margin-top:16px;border:1px solid #D6C69A;background:#fff;color:#8C4A3A;border-radius:5px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif",
-        )}
-      >
-        Sign out
-      </button>
+      <SignOutDialog v={v} />
       <div
         style={css(
           "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#9c9484;text-align:center;margin-top:14px",

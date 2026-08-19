@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireVerifiedEmail } from "../middleware/auth";
 import { groupIdParamSchema } from "../schemas/plan.schema";
 import {
   createMemberSchema,
@@ -26,7 +26,7 @@ import {
 
 /** Nested under /groups/:groupId/members */
 export const groupMembersRouter = Router({ mergeParams: true });
-groupMembersRouter.use(requireAuth);
+groupMembersRouter.use(requireAuth, requireVerifiedEmail);
 groupMembersRouter.get(
   "/",
   validate({ params: groupIdParamSchema, query: listMembersQuerySchema }),
@@ -40,7 +40,7 @@ groupMembersRouter.post(
 
 /** Top-level /members/:id */
 export const memberRouter = Router();
-memberRouter.use(requireAuth);
+memberRouter.use(requireAuth, requireVerifiedEmail);
 memberRouter.get("/:id", validate({ params: memberIdParamSchema }), asyncHandler(getMember));
 memberRouter.patch(
   "/:id",

@@ -106,11 +106,12 @@ export function Signup({ v }: { v: SorthehelpVals }): React.JSX.Element {
         <button
           type="button"
           onClick={v.signupWithPassword}
+          disabled={v.authPending}
           style={css(
             "width:100%;margin-top:18px;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
           )}
         >
-          Create account
+          {v.authPending ? "Creating account…" : "Create account"}
         </button>
         <div
           style={css(

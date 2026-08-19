@@ -91,11 +91,12 @@ export function Login({ v }: { v: SorthehelpVals }): React.JSX.Element {
           <button
             type="button"
             onClick={v.loginWithPassword}
+            disabled={v.authPending}
             style={css(
               "width:100%;margin-top:16px;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
             )}
           >
-            Sign in
+            {v.authPending ? "Signing in…" : "Sign in"}
           </button>
           <div
             style={css(

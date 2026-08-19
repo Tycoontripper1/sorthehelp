@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "Sorthehelp",
@@ -70,7 +71,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  loginAction,
+  signupAction,
+  forgotPasswordAction,
+  logoutAction,
+  getSessionAction,
+  updateMeAction,
+  type IOwner,
+} from "@/actions/auth";
+import type { ActionResult } from "@/actions/common";
 
 const DAY = 86400000;
 export const INK = "#202A33";
@@ -72,8 +83,9 @@ interface State {
   query: string;
   selId: number;
   stampId: number | null;
-  toast: string;
   pickerOpen: boolean;
+  authPending: boolean;
+  owner: IOwner | null;
   revenue: number;
   members: Member[];
   plans: Plan[];
@@ -222,8 +234,9 @@ function makeInitialState(startScreen: Screen): State {
     query: "",
     selId: 2,
     stampId: null,
-    toast: "",
     pickerOpen: false,
+    authPending: false,
+    owner: null,
     revenue: 26000,
     members: initialMembers,
     plans: initialPlans,
@@ -261,21 +274,56 @@ export function useSorthehelp(
   onboardingVariant: OnboardingVariant = "steps",
 ) {
   const [s, setS] = useState<State>(() => makeInitialState(startScreen));
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const say = (msg: string) => toast(msg);
+  const sayOk = (msg: string) => toast.success(msg);
+
+  /**
+   * Shows a loading toast for the duration of an action, then swaps it in
+   * place for a success or error toast — so the user always sees that
+   * something is happening, not just a result that appears out of nowhere.
+   */
+  async function withToast<T>(
+    promise: Promise<ActionResult<T>>,
+    messages: { loading: string; success: string | ((data: T) => string) },
+  ): Promise<ActionResult<T>> {
+    const id = toast.loading(messages.loading);
+    const result = await promise;
+    if (result.ok) {
+      const msg =
+        typeof messages.success === "function"
+          ? messages.success(result.data)
+          : messages.success;
+      toast.success(msg, { id });
+    } else {
+      toast.error(result.message, { id });
+    }
+    return result;
+  }
+
+  // Lazily confirm the session against GET /auth/me the first time the
+  // profile screen is opened, rather than trusting the owner snapshot
+  // returned at login forever.
+  const fetchedProfile = useRef(false);
   useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
+    if (s.screen !== "settings" || fetchedProfile.current) return;
+    fetchedProfile.current = true;
+    getSessionAction().then((result) => {
+      if (result.ok) setS((prev) => ({ ...prev, owner: result.data.owner }));
+    });
+  }, [s.screen]);
 
-  const say = (msg: string) => {
-    setS((prev) => ({ ...prev, toast: msg }));
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(
-      () => setS((prev) => ({ ...prev, toast: "" })),
-      2200,
-    );
+  const signOut = async () => {
+    await logoutAction();
+    setS((prev) => ({ ...prev, owner: null, screen: "splash" }));
+  };
+
+  const saveProfile = async (input: { name?: string; payoutAccount?: string }) => {
+    const result = await withToast(updateMeAction(input), {
+      loading: "Saving…",
+      success: "Profile updated",
+    });
+    if (result.ok) setS((prev) => ({ ...prev, owner: result.data.owner }));
   };
 
   const nav = (screen: Screen) => () =>
@@ -428,7 +476,7 @@ export function useSorthehelp(
         newPlanPrice: "",
       };
     });
-    say("Plan created");
+    sayOk("Plan created");
   };
   const confirmAdd = () => {
     if (!s.newName.trim()) {
@@ -472,7 +520,7 @@ export function useSorthehelp(
         newPlanId: null,
       };
     });
-    say(s.newName.trim() + " added to " + s.group);
+    sayOk(s.newName.trim() + " added to " + s.group);
   };
 
   const openTelegramSettings = () =>
@@ -494,7 +542,7 @@ export function useSorthehelp(
       telegramSheetOpen: false,
       telegramDraft: "",
     }));
-    say("Telegram connected for " + s.group);
+    sayOk("Telegram connected for " + s.group);
   };
   const disconnectTelegram = () => {
     setS((prev) => {
@@ -502,7 +550,7 @@ export function useSorthehelp(
       delete next[prev.group];
       return { ...prev, telegramChatIds: next, telegramSheetOpen: false, telegramDraft: "" };
     });
-    say("Telegram disconnected for " + s.group);
+    sayOk("Telegram disconnected for " + s.group);
   };
 
   const openPlans = () =>
@@ -598,7 +646,7 @@ export function useSorthehelp(
         planFormType: "one_time",
       };
     });
-    say(editingId === null ? "Plan created" : "Plan updated");
+    sayOk(editingId === null ? "Plan created" : "Plan updated");
   };
   const deletePlan = (id: number) => {
     setS((prev) => ({
@@ -610,7 +658,7 @@ export function useSorthehelp(
       planFilter: prev.planFilter === id ? "all" : prev.planFilter,
       editingPlanId: prev.editingPlanId === id ? null : prev.editingPlanId,
     }));
-    say("Plan removed");
+    sayOk("Plan removed");
   };
 
   const openPlanFilter = () => setS((prev) => ({ ...prev, planFilterOpen: true }));
@@ -632,7 +680,7 @@ export function useSorthehelp(
         ),
         planPickerFor: null,
       }));
-      say("Switched to custom pricing");
+      sayOk("Switched to custom pricing");
       return;
     }
     const plan = s.plans.find((p) => p.id === planId);
@@ -655,7 +703,7 @@ export function useSorthehelp(
       ),
       planPickerFor: null,
     }));
-    say("Moved to " + plan.name);
+    sayOk("Moved to " + plan.name);
   };
 
   const openReminderEdit = () =>
@@ -673,7 +721,7 @@ export function useSorthehelp(
       reminderEditOpen: false,
       reminderDraft: "",
     }));
-    say("Reminder message updated");
+    sayOk("Reminder message updated");
   };
 
   const closePay = () =>
@@ -707,7 +755,7 @@ export function useSorthehelp(
       stampId:
         target && target.paidAmount + amount >= target.amount ? id : prev.stampId,
     }));
-    say((target ? target.name : "Payment") + " · " + naira(amount) + " logged");
+    sayOk((target ? target.name : "Payment") + " · " + naira(amount) + " logged");
   };
 
   const markPaid = (id: number) => {
@@ -727,7 +775,7 @@ export function useSorthehelp(
       };
     });
     const m = s.members.find((x) => x.id === id);
-    say((m ? m.name : "Member") + " marked as paid");
+    sayOk((m ? m.name : "Member") + " marked as paid");
   };
 
   const scr = s.screen;
@@ -1098,15 +1146,16 @@ export function useSorthehelp(
     {
       title: "Email or phone",
       sub: "Used to sign in",
-      value: s.identifier || "amaka@example.com",
+      value:
+        s.owner?.email || s.owner?.phone || s.identifier || "amaka@example.com",
       valueColor: SOFT,
       tap: go.pin,
     },
     {
       title: "Payouts",
       sub: "Where collected money lands",
-      value: "Not set",
-      valueColor: "#A9781F",
+      value: s.owner?.payoutAccount || "Not set",
+      valueColor: s.owner?.payoutAccount ? SOFT : "#A9781F",
       tap: go.paywall,
     },
     {
@@ -1125,7 +1174,7 @@ export function useSorthehelp(
     },
     {
       title: "Plan",
-      sub: "Free · 2 groups",
+      sub: (s.owner?.planTier ?? "FREE") === "FREE" ? "Free · 2 groups" : s.owner!.planTier,
       value: "Upgrade",
       valueColor: "#8C4A3A",
       tap: go.paywall,
@@ -1194,7 +1243,8 @@ export function useSorthehelp(
   }));
   const pinCells2 = s.pin2.map((ch) => ({ ch: ch ? "•" : "·" }));
 
-  const identifierDisplay = s.identifier || "amaka@example.com";
+  const identifierDisplay =
+    s.owner?.email || s.owner?.phone || s.identifier || "amaka@example.com";
 
   return {
     go,
@@ -1234,20 +1284,31 @@ export function useSorthehelp(
     ownerName: s.ownerName,
     onOwner: (e: React.ChangeEvent<HTMLInputElement>) =>
       setS((prev) => ({ ...prev, ownerName: e.target.value })),
-    ownerNameOut: s.ownerName || "Amaka Nwosu",
+    ownerNameOut: s.owner?.name || s.ownerName || "Amaka Nwosu",
     termsMark: s.terms ? "✓" : "",
     toggleTerms: () => setS((prev) => ({ ...prev, terms: !prev.terms })),
     identifierDisplay,
     pinCells,
     pinCells2,
-    loginWithPassword: () => {
+    loginWithPassword: async () => {
       if (!s.identifier.trim() || !s.password) {
         say("Enter your email/phone and password");
         return;
       }
-      setS((prev) => ({ ...prev, screen: "ledger" }));
+      setS((prev) => ({ ...prev, authPending: true }));
+      const result = await withToast(
+        loginAction({ identifier: s.identifier.trim(), password: s.password }),
+        {
+          loading: "Signing in…",
+          success: (data) =>
+            "Welcome back" + (data.owner.name ? ", " + data.owner.name : ""),
+        },
+      );
+      setS((prev) => ({ ...prev, authPending: false }));
+      if (!result.ok) return;
+      setS((prev) => ({ ...prev, screen: "ledger", owner: result.data.owner }));
     },
-    signupWithPassword: () => {
+    signupWithPassword: async () => {
       if (!s.identifier.trim()) {
         say("Add an email or phone number");
         return;
@@ -1260,11 +1321,45 @@ export function useSorthehelp(
         say("Agree to the terms to continue");
         return;
       }
-      setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }));
+      const identifier = s.identifier.trim();
+      const isEmail = identifier.includes("@");
+      setS((prev) => ({ ...prev, authPending: true }));
+      const result = await withToast(
+        signupAction({
+          email: isEmail ? identifier : undefined,
+          phone: isEmail ? undefined : identifier,
+          name: s.ownerName.trim() || undefined,
+          password: s.password,
+        }),
+        {
+          loading: "Creating your account…",
+          success: isEmail
+            ? "Account created — check your email to verify it"
+            : "Account created — let's get you set up",
+        },
+      );
+      setS((prev) => ({ ...prev, authPending: false }));
+      if (!result.ok) return;
+      setS((prev) => ({
+        ...prev,
+        screen: "onboard",
+        obStep: 1,
+        owner: result.data.owner,
+      }));
     },
-    forgotPassword: () => {
-      say("Reset link sent — check your email");
-      setS((prev) => ({ ...prev, screen: "login" }));
+    forgotPassword: async () => {
+      const identifier = s.identifier.trim();
+      if (!identifier.includes("@")) {
+        say("Enter the email you signed up with first");
+        return;
+      }
+      setS((prev) => ({ ...prev, authPending: true }));
+      const result = await withToast(forgotPasswordAction({ email: identifier }), {
+        loading: "Sending reset link…",
+        success: "If an account exists for this email, a reset link has been sent",
+      });
+      setS((prev) => ({ ...prev, authPending: false }));
+      if (result.ok) setS((prev) => ({ ...prev, screen: "login" }));
     },
 
     obStep: s.obStep,
@@ -1444,7 +1539,10 @@ export function useSorthehelp(
     closePay,
     confirmPay,
 
-    toast: s.toast,
+    authPending: s.authPending,
+    emailVerified: Boolean(s.owner?.emailVerified),
+    signOut,
+    saveProfile,
   };
 }
 

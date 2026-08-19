@@ -37,12 +37,35 @@ export function Recover({ v }: { v: SorthehelpVals }): React.JSX.Element {
       </div>
       <div
         style={css(
-          "background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;box-shadow:0 1px 0 rgba(32,42,51,.05),0 6px 16px -8px rgba(32,42,51,.18);margin-top:20px;overflow:hidden",
+          "background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;box-shadow:0 1px 0 rgba(32,42,51,.05),0 6px 16px -8px rgba(32,42,51,.18);margin-top:20px;padding:16px 16px 4px",
+        )}
+      >
+        <label
+          style={css(
+            "display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;margin-bottom:6px",
+          )}
+        >
+          Your email
+        </label>
+        <input
+          type="text"
+          value={v.identifier}
+          onChange={v.onIdentifier}
+          placeholder="amaka@example.com"
+          style={css(
+            "width:100%;box-sizing:border-box;border:1px solid #D6C69A;border-radius:5px;background:#EFE7D3;padding:13px 11px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.02em;color:#202A33;outline:none",
+          )}
+        />
+      </div>
+      <div
+        style={css(
+          "background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;box-shadow:0 1px 0 rgba(32,42,51,.05),0 6px 16px -8px rgba(32,42,51,.18);margin-top:12px;overflow:hidden",
         )}
       >
         <button
           type="button"
           onClick={v.forgotPassword}
+          disabled={v.authPending}
           style={css(
             "width:100%;text-align:left;display:block;border:none;border-bottom:1px dashed #D6C69A;background:none;padding:14px 16px;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
           )}
