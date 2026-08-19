@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../lib/env";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
+import { asyncHandler } from "../utils/asyncHandler";
 
 interface AccessTokenPayload {
   ownerId: string;
@@ -36,7 +37,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
  * confirmed it yet. Phone-only accounts (no email on file) have nothing to
  * verify, so they pass through. Must run after `requireAuth`.
  */
-export async function requireVerifiedEmail(req: Request, _res: Response, next: NextFunction) {
+export const requireVerifiedEmail = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const owner = await prisma.owner.findUnique({ where: { id: req.ownerId } });
   if (!owner) throw ApiError.unauthorized("Invalid or expired token");
 
@@ -47,4 +48,4 @@ export async function requireVerifiedEmail(req: Request, _res: Response, next: N
   }
 
   next();
-}
+});
