@@ -85,16 +85,57 @@ body {
   background: transparent;
 }
 
-/* Toast animation */
-@keyframes toastIn {
+@keyframes alertDialogOverlayIn {
   from {
-    transform: translate(-50%, -120%) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translate(-50%, 0) scale(1);
     opacity: 1;
   }
+}
+
+@keyframes alertDialogOverlayOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes alertDialogContentIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes alertDialogContentOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+
+.alert-dialog-overlay[data-state="open"] {
+  animation: alertDialogOverlayIn 0.15s ease-out;
+}
+.alert-dialog-overlay[data-state="closed"] {
+  animation: alertDialogOverlayOut 0.15s ease-in;
+}
+.alert-dialog-content[data-state="open"] {
+  animation: alertDialogContentIn 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.alert-dialog-content[data-state="closed"] {
+  animation: alertDialogContentOut 0.15s ease-in;
 }
 
 @keyframes slideUp {

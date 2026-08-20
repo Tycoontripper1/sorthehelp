@@ -2,8 +2,11 @@
 
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 
-export function Signup({ v }: { v: SorthehelpVals }) {
+import React from "react";
+
+export function Signup({ v }: { v: SorthehelpVals }): React.JSX.Element {
   return (
     <div
       style={css(
@@ -104,11 +107,12 @@ export function Signup({ v }: { v: SorthehelpVals }) {
         <button
           type="button"
           onClick={v.signupWithPassword}
+          disabled={v.authPending}
           style={css(
             "width:100%;margin-top:18px;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
           )}
         >
-          Create account
+          {v.authPending ? "Creating account…" : "Create account"}
         </button>
         <div
           style={css(
@@ -125,20 +129,7 @@ export function Signup({ v }: { v: SorthehelpVals }) {
           </span>
           <div style={css("flex:1;height:1px;background:#D6C69A")} />
         </div>
-        <button
-          type="button"
-          onClick={v.go.onboard}
-          style={css(
-            "width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #D6C69A;background:#fff;color:#202A33;border-radius:5px;padding:13px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .2s",
-          )}
-        >
-          <span
-            style={css(
-              "width:18px;height:18px;border-radius:50%;background:conic-gradient(#EA4335 0 25%,#FBBC05 0 50%,#34A853 0 75%,#4285F4 0);display:inline-block",
-            )}
-          />
-          Sign up with Google
-        </button>
+        <GoogleAuthButton text="signup_with" onIdToken={v.googleAuth} />
       </div>
     </div>
   );

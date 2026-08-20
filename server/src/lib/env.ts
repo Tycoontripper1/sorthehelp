@@ -17,6 +17,12 @@ const schema = z.object({
 
   // Telegram — leave unset in dev; invite links fall back to a logged stub.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+
+  // Google Sign-In — leave unset and POST /auth/google returns a clear 501
+  // instead of the server failing to boot. Get a client ID from
+  // https://console.cloud.google.com/apis/credentials (OAuth client, type
+  // "Web application"). Must match NEXT_PUBLIC_GOOGLE_CLIENT_ID on the frontend.
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

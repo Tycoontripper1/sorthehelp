@@ -1,9 +1,10 @@
 "use client";
 
+import React from "react";
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
 
-export function Splash({ v }: { v: SorthehelpVals }) {
+export function Splash({ v }: { v: SorthehelpVals }): React.JSX.Element {
   return (
     <div
       style={css(

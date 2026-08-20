@@ -3,7 +3,9 @@
 import { css } from "@/lib/css";
 import type { SorthehelpVals } from "@/lib/useSorthehelp";
 
-export function MemberDetail({ v }: { v: SorthehelpVals }) {
+import React from "react";
+
+export function MemberDetail({ v }: { v: SorthehelpVals }): React.JSX.Element {
   const sel = v.sel;
   return (
     <div>

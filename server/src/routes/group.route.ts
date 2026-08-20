@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { validate } from "../middleware/validate";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireVerifiedEmail } from "../middleware/auth";
 import { createGroupSchema, updateGroupSchema, idParamSchema } from "../schemas/group.schema";
 import {
   listGroups,
@@ -13,7 +13,7 @@ import {
 
 export const groupRouter = Router();
 
-groupRouter.use(requireAuth);
+groupRouter.use(requireAuth, requireVerifiedEmail);
 
 groupRouter.get("/", asyncHandler(listGroups));
 groupRouter.post("/", validate({ body: createGroupSchema }), asyncHandler(createGroup));

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
 import { sendSuccess } from "../utils/apiResponse";
@@ -9,6 +10,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "../services/email
 import { env } from "../lib/env";
 
 const PASSWORD_ROUNDS = 10;
+const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null;
 
 function toSafeOwner(owner: {
   id: string;
@@ -64,7 +66,7 @@ export async function login(req: Request, res: Response) {
     where: { OR: [{ email: idLower }, { phone: identifier }] },
   });
 
-  if (!owner || !(await bcrypt.compare(password, owner.passwordHash))) {
+  if (!owner || !owner.passwordHash || !(await bcrypt.compare(password, owner.passwordHash))) {
     throw ApiError.unauthorized("Incorrect email/phone or password");
   }
 
@@ -166,4 +168,63 @@ export async function updateMe(req: Request, res: Response) {
     data,
   });
   sendSuccess(res, 200, "Profile updated successfully", { owner: toSafeOwner(owner) });
+}
+
+export async function googleSignIn(req: Request, res: Response) {
+  if (!googleClient || !env.GOOGLE_CLIENT_ID) {
+    throw new ApiError(501, "Google sign-in is not configured on this server yet");
+  }
+
+  const { idToken } = req.body as { idToken: string };
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    throw ApiError.unauthorized("Invalid Google credential");
+  }
+  if (!payload?.sub || !payload.email) {
+    throw ApiError.unauthorized("Invalid Google credential");
+  }
+
+  const email = payload.email.toLowerCase();
+  const googleId = payload.sub;
+
+  let owner = await prisma.owner.findUnique({ where: { googleId } });
+  let isNewOwner = false;
+
+  if (!owner) {
+    const byEmail = await prisma.owner.findUnique({ where: { email } });
+    if (byEmail) {
+      // An email/password account already exists for this address — link
+      // Google to it rather than creating a duplicate. Google has already
+      // proven this email, so this also satisfies the verification gate.
+      owner = await prisma.owner.update({
+        where: { id: byEmail.id },
+        data: {
+          googleId,
+          emailVerifiedAt: byEmail.emailVerifiedAt ?? new Date(),
+          name: byEmail.name ?? payload.name ?? null,
+        },
+      });
+    } else {
+      owner = await prisma.owner.create({
+        data: {
+          email,
+          name: payload.name ?? null,
+          googleId,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      isNewOwner = true;
+    }
+  }
+
+  const token = signAccessToken(owner.id);
+  sendSuccess(res, 200, "Signed in with Google", {
+    token,
+    owner: toSafeOwner(owner),
+    isNewOwner,
+  });
 }

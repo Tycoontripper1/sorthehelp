@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   useSorthehelp,
   type Screen,
@@ -13,6 +14,7 @@ import { Pin } from "./screens/Pin";
 import { OnboardSteps } from "./screens/OnboardSteps";
 import { OnboardChecklist } from "./screens/OnboardChecklist";
 import { AppShell } from "./screens/AppShell";
+import React from "react";
 
 export function SorthehelpApp({
   startScreen = "splash",
@@ -20,10 +22,11 @@ export function SorthehelpApp({
 }: {
   startScreen?: Screen;
   onboardingVariant?: OnboardingVariant;
-}) {
+}): React.JSX.Element {
   const v = useSorthehelp(startScreen, onboardingVariant);
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  return (
+  const app = (
     <div
       style={{
         position: "fixed",
@@ -51,30 +54,12 @@ export function SorthehelpApp({
       {v.isPin && <Pin v={v} />}
       {v.isObSteps && <OnboardSteps v={v} />}
       {v.isApp && <AppShell v={v} />}
-
-      {v.toast && (
-        <div
-          style={{
-            position: "fixed",
-            top: "18px",
-            left: "50%",
-            background: "#202A33",
-            color: "#EFE7D3",
-            padding: "11px 18px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontFamily: "Inter,sans-serif",
-            boxShadow: "0 10px 24px rgba(0,0,0,.25)",
-            zIndex: 80,
-            maxWidth: "88%",
-            textAlign: "center",
-            animation: "toastIn .3s cubic-bezier(.2,.9,.3,1.2) forwards",
-            transform: "translateX(-50%)",
-          }}
-        >
-          {v.toast}
-        </div>
-      )}
     </div>
+  );
+
+  return googleClientId ? (
+    <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
+  ) : (
+    app
   );
 }

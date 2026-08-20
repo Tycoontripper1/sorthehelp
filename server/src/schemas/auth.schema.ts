@@ -51,6 +51,10 @@ export const verifyPinSchema = z.object({
   pin: z.string().trim().length(4, "PIN must be 4 digits"),
 });
 
+export const googleSignInSchema = z.object({
+  idToken: z.string().min(1, "Missing Google credential"),
+});
+
 export const updateMeSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   payoutAccount: z.string().trim().max(200).optional(),

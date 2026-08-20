@@ -11,6 +11,7 @@ import {
   setPinSchema,
   verifyPinSchema,
   updateMeSchema,
+  googleSignInSchema,
 } from "../schemas/auth.schema";
 import {
   signup,
@@ -23,12 +24,14 @@ import {
   verifyPin,
   getMe,
   updateMe,
+  googleSignIn,
 } from "../controllers/auth.controller";
 
 export const authRouter = Router();
 
 authRouter.post("/signup", validate({ body: signupSchema }), asyncHandler(signup));
 authRouter.post("/login", validate({ body: loginSchema }), asyncHandler(login));
+authRouter.post("/google", validate({ body: googleSignInSchema }), asyncHandler(googleSignIn));
 authRouter.post(
   "/password/forgot",
   validate({ body: forgotPasswordSchema }),
