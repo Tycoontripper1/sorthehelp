@@ -89,7 +89,10 @@ export function Empty({ v }: { v: SorthehelpVals }) {
         >
           <button
             type="button"
-            onClick={v.go.ledger}
+            onClick={() => {
+              v.go.ledger();
+              v.openAdd();
+            }}
             style={css(
               "border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:13px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif",
             )}
@@ -98,7 +101,10 @@ export function Empty({ v }: { v: SorthehelpVals }) {
           </button>
           <button
             type="button"
-            onClick={v.go.ledger}
+            onClick={() => {
+              v.go.ledger();
+              v.openBulk();
+            }}
             style={css(
               "border:1px solid #D6C69A;background:#fff;color:#202A33;border-radius:5px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif",
             )}

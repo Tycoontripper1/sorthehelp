@@ -50,9 +50,10 @@ export async function listMembers(req: Request, res: Response) {
 
 export async function createMember(req: Request, res: Response) {
   const group = await requireOwnedGroup(req.ownerId!, req.params.groupId);
-  const { name, phone, planId, amount, type } = req.body as {
+  const { name, phone, email, planId, amount, type } = req.body as {
     name: string;
     phone: string;
+    email?: string;
     planId?: string;
     amount?: number;
     type?: "ONE_TIME" | "RECURRING";
@@ -62,6 +63,7 @@ export async function createMember(req: Request, res: Response) {
     groupId: group.id,
     name,
     phone,
+    email,
     planId: planId ?? null,
     amount,
     type,
@@ -86,11 +88,15 @@ export async function getMember(req: Request, res: Response) {
 
 export async function updateMember(req: Request, res: Response) {
   const existing = await requireOwnedMember(req.ownerId!, req.params.id);
-  const { link, earlyAccess } = req.body as { link?: string; earlyAccess?: boolean };
+  const { link, earlyAccess, email } = req.body as {
+    link?: string;
+    earlyAccess?: boolean;
+    email?: string;
+  };
 
   const member = await prisma.member.update({
     where: { id: existing.id },
-    data: { link, earlyAccess },
+    data: { link, earlyAccess, email },
   });
 
   sendSuccess(res, 200, "Member updated successfully", { member: withStatus(member) });

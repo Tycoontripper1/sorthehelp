@@ -205,6 +205,42 @@ export function MemberDetail({ v }: { v: SorthehelpVals }) {
             "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#6b6455;padding-bottom:8px;border-bottom:2px solid #202A33",
           )}
         >
+          Email
+        </div>
+        <div
+          style={css("display:flex;align-items:center;gap:8px;padding:12px 0")}
+        >
+          <span
+            style={css(
+              `font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:${sel.emailTagColor};white-space:nowrap`,
+            )}
+          >
+            {sel.emailTag}
+          </span>
+          <input
+            type="email"
+            value={sel.email}
+            onChange={v.onEmail}
+            placeholder="add an email address"
+            style={css(
+              "flex:1;min-width:0;border:1px solid #D6C69A;background:#EFE7D3;border-radius:4px;padding:8px 9px;font-family:Inter,sans-serif;font-size:16px;color:#202A33;outline:none",
+            )}
+          />
+        </div>
+        <div style={css("font-size:11.5px;color:#9c9484;padding-bottom:12px")}>
+          Used to send stories, updates or PDFs later.
+        </div>
+      </div>
+      <div
+        style={css(
+          "background:#FBF7EC;border:1px solid #D6C69A;border-radius:4px;box-shadow:0 1px 0 rgba(32,42,51,.05),0 6px 16px -8px rgba(32,42,51,.18);margin-top:12px;padding:14px 14px 6px",
+        )}
+      >
+        <div
+          style={css(
+            "font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#6b6455;padding-bottom:8px;border-bottom:2px solid #202A33",
+          )}
+        >
           Access link
         </div>
         <div

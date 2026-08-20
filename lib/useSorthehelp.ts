@@ -16,6 +16,7 @@ export interface Member {
   id: number;
   name: string;
   phone: string;
+  email: string;
   type: MemberType;
   amount: number;
   paidAmount: number;
@@ -81,8 +82,15 @@ interface State {
   newName: string;
   newAmount: string;
   newPhone: string;
+  newEmail: string;
   newType: MemberType;
   newPlanId: number | "custom" | null;
+  bulkOpen: boolean;
+  bulkText: string;
+  broadcastOpen: boolean;
+  broadcastAudience: "group" | "all";
+  broadcastSubject: string;
+  broadcastBody: string;
   newPlanFormOpen: boolean;
   newPlanName: string;
   newPlanPrice: string;
@@ -134,6 +142,7 @@ const initialMembers: Member[] = [
     id: 1,
     name: "Ngozi Okafor",
     phone: "0803 411 2288",
+    email: "ngozi.okafor@example.com",
     type: "one_time",
     amount: 5000,
     paidAmount: 5000,
@@ -147,6 +156,7 @@ const initialMembers: Member[] = [
     id: 2,
     name: "Femi Adio",
     phone: "0701 992 4410",
+    email: "femi.adio@example.com",
     type: "recurring",
     amount: 8000,
     paidAmount: 0,
@@ -160,6 +170,7 @@ const initialMembers: Member[] = [
     id: 3,
     name: "Ibrahim Musa",
     phone: "0812 555 0193",
+    email: "",
     type: "recurring",
     amount: 8000,
     paidAmount: 3000,
@@ -173,6 +184,7 @@ const initialMembers: Member[] = [
     id: 4,
     name: "Chiamaka Eze",
     phone: "0906 220 7734",
+    email: "chiamaka.eze@example.com",
     type: "recurring",
     amount: 10000,
     paidAmount: 0,
@@ -186,6 +198,7 @@ const initialMembers: Member[] = [
     id: 5,
     name: "Tolu Bankole",
     phone: "0705 118 6620",
+    email: "tolu.bankole@example.com",
     type: "one_time",
     amount: 5000,
     paidAmount: 2000,
@@ -231,8 +244,15 @@ function makeInitialState(startScreen: Screen): State {
     newName: "",
     newAmount: "",
     newPhone: "",
+    newEmail: "",
     newType: "one_time",
     newPlanId: null,
+    bulkOpen: false,
+    bulkText: "",
+    broadcastOpen: false,
+    broadcastAudience: "group",
+    broadcastSubject: "",
+    broadcastBody: "",
     newPlanFormOpen: false,
     newPlanName: "",
     newPlanPrice: "",
@@ -384,6 +404,7 @@ export function useSorthehelp(
       addOpen: false,
       newName: "",
       newPhone: "",
+      newEmail: "",
       newAmount: "",
       newType: "one_time",
       newPlanId: null,
@@ -452,6 +473,7 @@ export function useSorthehelp(
         id: nextId,
         name: prev.newName.trim(),
         phone: prev.newPhone.trim(),
+        email: prev.newEmail.trim(),
         type,
         amount,
         paidAmount: 0,
@@ -467,12 +489,133 @@ export function useSorthehelp(
         addOpen: false,
         newName: "",
         newPhone: "",
+        newEmail: "",
         newAmount: "",
         newType: "one_time",
         newPlanId: null,
       };
     });
     say(s.newName.trim() + " added to " + s.group);
+  };
+
+  const openBulk = () =>
+    setS((prev) => {
+      const firstPlan = prev.plans.find((p) => p.group === prev.group);
+      return {
+        ...prev,
+        addOpen: false,
+        bulkOpen: true,
+        bulkText: "",
+        newPlanId: firstPlan ? firstPlan.id : "custom",
+        newPlanFormOpen: false,
+      };
+    });
+  const closeBulk = () =>
+    setS((prev) => ({ ...prev, bulkOpen: false, bulkText: "" }));
+  const confirmBulk = () => {
+    const lines = s.bulkText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      say("Paste at least one member first");
+      return;
+    }
+
+    const usingPlan =
+      typeof s.newPlanId === "number"
+        ? s.plans.find((p) => p.id === s.newPlanId)
+        : null;
+    const amount = usingPlan ? usingPlan.price : Number(s.newAmount) || 0;
+    const type = usingPlan ? usingPlan.type : s.newType;
+    if (!usingPlan && amount <= 0) {
+      say("Set an amount, or pick a plan, first");
+      return;
+    }
+
+    let added = 0;
+    setS((prev) => {
+      let nextId = prev.members.reduce((max, m) => Math.max(max, m.id), 0);
+      const created: Member[] = [];
+      for (const line of lines) {
+        const [rawName, rawPhone = "", rawEmail = ""] = line.split(",");
+        const name = (rawName ?? "").trim();
+        if (!name) continue;
+        nextId += 1;
+        created.push({
+          id: nextId,
+          name,
+          phone: rawPhone.trim(),
+          email: rawEmail.trim(),
+          type,
+          amount,
+          paidAmount: 0,
+          note: prev.group,
+          link: "",
+          group: prev.group,
+          dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
+          planId: usingPlan ? usingPlan.id : null,
+        });
+      }
+      added = created.length;
+      return {
+        ...prev,
+        members: [...prev.members, ...created],
+        bulkOpen: false,
+        bulkText: "",
+        newAmount: "",
+        newType: "one_time",
+        newPlanId: null,
+      };
+    });
+    if (added > 0) {
+      say(added + (added === 1 ? " member" : " members") + " added to " + s.group);
+    } else {
+      say("No valid names found — one member per line");
+    }
+  };
+
+  const openBroadcast = () =>
+    setS((prev) => ({
+      ...prev,
+      broadcastOpen: true,
+      broadcastAudience: "group",
+      broadcastSubject: "",
+      broadcastBody: "",
+    }));
+  const closeBroadcast = () =>
+    setS((prev) => ({ ...prev, broadcastOpen: false }));
+  const setBroadcastAudience = (audience: "group" | "all") =>
+    setS((prev) => ({ ...prev, broadcastAudience: audience }));
+  const sendBroadcastMock = () => {
+    if (!s.broadcastSubject.trim()) {
+      say("Add a subject first");
+      return;
+    }
+    if (!s.broadcastBody.trim()) {
+      say("Write a message first");
+      return;
+    }
+    const audienceMembers =
+      s.broadcastAudience === "group"
+        ? s.members.filter((m) => m.group === s.group)
+        : s.members;
+    const recipientCount = audienceMembers.filter((m) => m.email.trim()).length;
+    setS((prev) => ({
+      ...prev,
+      broadcastOpen: false,
+      broadcastSubject: "",
+      broadcastBody: "",
+    }));
+    if (recipientCount === 0) {
+      say("No one in that audience has an email on file yet");
+      return;
+    }
+    say(
+      "Sent to " +
+        recipientCount +
+        (recipientCount === 1 ? " member" : " members"),
+    );
   };
 
   const openTelegramSettings = () =>
@@ -839,6 +982,11 @@ export function useSorthehelp(
   const groupTarget = inGroup.reduce((sum, m) => sum + m.amount, 0);
   const groupPercent =
     groupTarget > 0 ? Math.round((groupCollected / groupTarget) * 100) : 0;
+  const broadcastPool =
+    s.broadcastAudience === "group" ? inGroup : s.members;
+  const broadcastRecipientCount = broadcastPool.filter((m) =>
+    m.email.trim(),
+  ).length;
   const statDef: [MemberStatus, string, string][] = [
     ["active", "Active", "#3F6B4F"],
     ["part", "Part", "#2E5C8A"],
@@ -961,6 +1109,9 @@ export function useSorthehelp(
   const sel = {
     name: selMember.name,
     note: selMember.note,
+    email: selMember.email,
+    emailTag: selMember.email ? "on file" : "not collected",
+    emailTagColor: selMember.email ? "#3F6B4F" : FAINT,
     planLabel: planName(selMember.planId) ?? "Custom",
     typeLabel: selMember.type === "one_time" ? "one-time" : "recurring",
     badge: selBadge,
@@ -1373,6 +1524,15 @@ export function useSorthehelp(
         ),
       }));
     },
+    onEmail: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = e.target.value;
+      setS((prev) => ({
+        ...prev,
+        members: prev.members.map((m) =>
+          m.id === prev.selId ? { ...m, email: v } : m,
+        ),
+      }));
+    },
     openPay: () => {
       setS((prev) => ({ ...prev, payFor: prev.selId }));
       say("Logging payment for " + sel.name);
@@ -1392,10 +1552,35 @@ export function useSorthehelp(
     openAdd,
     closeAdd,
     confirmAdd,
+    bulkOpen: s.bulkOpen,
+    openBulk,
+    closeBulk,
+    confirmBulk,
+    bulkText: s.bulkText,
+    setBulkText: (v: string) => setS((prev) => ({ ...prev, bulkText: v })),
+    bulkCount: s.bulkText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean).length,
+    broadcastOpen: s.broadcastOpen,
+    openBroadcast,
+    closeBroadcast,
+    sendBroadcastMock,
+    broadcastAudience: s.broadcastAudience,
+    setBroadcastAudience,
+    broadcastSubject: s.broadcastSubject,
+    setBroadcastSubject: (v: string) =>
+      setS((prev) => ({ ...prev, broadcastSubject: v })),
+    broadcastBody: s.broadcastBody,
+    setBroadcastBody: (v: string) =>
+      setS((prev) => ({ ...prev, broadcastBody: v })),
+    broadcastRecipientCount,
     newName: s.newName,
     setNewName: (v: string) => setS((prev) => ({ ...prev, newName: v })),
     newPhone: s.newPhone,
     setNewPhone: (v: string) => setS((prev) => ({ ...prev, newPhone: v })),
+    newEmail: s.newEmail,
+    setNewEmail: (v: string) => setS((prev) => ({ ...prev, newEmail: v })),
     newAmount: s.newAmount,
     setNewAmount: (v: string) => setS((prev) => ({ ...prev, newAmount: v })),
     newType: s.newType,

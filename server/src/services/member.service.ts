@@ -110,6 +110,7 @@ interface CreateMemberInput {
   groupId: string;
   name: string;
   phone: string;
+  email?: string;
   planId?: string | null;
   amount?: number;
   type?: "ONE_TIME" | "RECURRING";
@@ -142,6 +143,7 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
         planId: plan?.id ?? null,
         name: input.name,
         phone: input.phone,
+        email: input.email,
         amount,
         type,
         paidAmount: 0,
