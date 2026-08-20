@@ -71,10 +71,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
-        {children}
-        <Toaster />
-      </body>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

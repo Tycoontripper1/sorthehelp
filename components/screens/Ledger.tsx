@@ -16,84 +16,137 @@ export function Ledger({ v }: { v: SorthehelpVals }): React.JSX.Element {
     <div>
       <div
         style={css(
-          "display:flex;align-items:flex-end;justify-content:space-between",
+          "display:flex;align-items:center;justify-content:space-between",
+        )}
+      >
+        <button
+          type="button"
+          onClick={v.go.settings}
+          style={css(
+            "flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #D6C69A;background:#FBF7EC;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#6b6455;cursor:pointer",
+          )}
+        >
+          AN
+        </button>
+        <button
+          type="button"
+          onClick={v.openNotifications}
+          style={css(
+            "position:relative;flex:none;width:38px;height:38px;border-radius:50%;border:1px solid #D6C69A;background:#FBF7EC;color:#6b6455;cursor:pointer;display:flex;align-items:center;justify-content:center",
+          )}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+          </svg>
+          {v.notificationCount > 0 && (
+            <span
+              style={css(
+                "position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#A6314A;border:2px solid #EFE7D3;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1",
+              )}
+            >
+              {v.notificationCount}
+            </span>
+          )}
+        </button>
+      </div>
+      <div style={css("display:flex;gap:6px;flex-wrap:wrap;margin-top:8px")}>
+        <button
+          type="button"
+          onClick={v.go.groups}
+          style={css(
+            "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:6px 12px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
+          )}
+        >
+          {v.groupLabel} ▾
+        </button>
+        <button
+          type="button"
+          onClick={v.openPlans}
+          style={css(
+            "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:5px 11px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
+          )}
+        >
+          Plans
+        </button>
+        <button
+          type="button"
+          onClick={v.openTelegramSettings}
+          style={css(
+            "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:5px 11px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
+          )}
+        >
+          <span
+            style={css(
+              `width:6px;height:6px;border-radius:50%;background:${v.telegramConnected ? "#3F6B4F" : "#9c9484"}`,
+            )}
+          />
+          Telegram
+        </button>
+      </div>
+      <div
+        style={css(
+          "display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:2px solid #202A33;border-bottom:1px solid #D6C69A;padding:14px 2px;margin-top:20px",
         )}
       >
         <div>
           <div
             style={css(
-              "font-family:Fraunces,serif;font-weight:600;font-size:27px;letter-spacing:-.01em",
+              "font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b6455",
             )}
           >
-            Sorthe
-            <em style={css("font-style:italic;font-weight:500;color:#A6314A")}>
-              help
-            </em>
+            Total collected
           </div>
-          <div style={css("display:flex;gap:6px;margin-top:7px")}>
-            <button
-              type="button"
-              onClick={v.go.groups}
-              style={css(
-                "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:5px 11px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
-              )}
-            >
-              {v.groupLabel} ▾
-            </button>
-            <button
-              type="button"
-              onClick={v.openPlans}
-              style={css(
-                "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:5px 11px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
-              )}
-            >
-              Plans
-            </button>
-            <button
-              type="button"
-              onClick={v.openTelegramSettings}
-              style={css(
-                "display:flex;align-items:center;gap:6px;border:1px solid #D6C69A;background:#FBF7EC;border-radius:20px;padding:5px 11px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b6455;cursor:pointer",
-              )}
-            >
-              <span
-                style={css(
-                  `width:6px;height:6px;border-radius:50%;background:${v.telegramConnected ? "#3F6B4F" : "#9c9484"}`,
-                )}
-              />
-              Telegram
-            </button>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A6314A;margin-top:3px",
+            )}
+          >
+            {v.groupCollectedLabel}
+          </div>
+          <div
+            style={css(
+              "font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9c9484;margin-top:2px",
+            )}
+          >
+            of {v.groupTargetLabel} expected
           </div>
         </div>
-        <button
-          type="button"
-          onClick={v.go.settings}
-          style={css(
-            "width:38px;height:38px;border-radius:50%;border:1px solid #D6C69A;background:#FBF7EC;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#6b6455;cursor:pointer",
-          )}
-        >
-          AN
-        </button>
-      </div>
-      <div
-        style={css(
-          "display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #202A33;border-bottom:1px solid #D6C69A;padding:10px 2px;margin-top:20px",
-        )}
-      >
-        <span
-          style={css(
-            "font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b6455",
-          )}
-        >
-          Total collected
-        </span>
-        <span
-          style={css(
-            "font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A6314A",
-          )}
-        >
-          {v.revenue}
-        </span>
+        <div style={css("position:relative;width:60px;height:60px;flex:none")}>
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle
+              cx="30"
+              cy="30"
+              r="26"
+              fill="none"
+              stroke="#D6C69A"
+              strokeWidth="6"
+            />
+            <circle
+              cx="30"
+              cy="30"
+              r="26"
+              fill="none"
+              stroke="#3F6B4F"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 26}
+              strokeDashoffset={
+                2 *
+                Math.PI *
+                26 *
+                (1 - Math.min(100, Math.max(0, v.groupPercent || 0)) / 100)
+              }
+              transform="rotate(-90 30 30)"
+            />
+          </svg>
+          <span
+            style={css(
+              "position:absolute;top:0;left:0;width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#202A33",
+            )}
+          >
+            {v.groupPercent || 0}%
+          </span>
+        </div>
       </div>
       <div
         style={css(

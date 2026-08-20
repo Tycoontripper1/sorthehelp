@@ -4,8 +4,8 @@ import { prisma } from "./lib/prisma";
 
 const app = createApp();
 
-const server = app.listen(env.PORT, () => {
-  console.log(`Sorthehelp API listening on http://localhost:${env.PORT}`);
+const server = app.listen(env.PORT, "0.0.0.0", () => {
+  console.log(`Sorthehelp API listening on http://0.0.0.0:${env.PORT}`);
 });
 
 async function shutdown(signal: string) {

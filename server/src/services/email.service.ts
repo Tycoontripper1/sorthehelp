@@ -58,3 +58,31 @@ export function sendPasswordResetEmail(to: string, name: string | null, link: st
     html: `<p>Hi ${name ?? "there"},</p><p>Reset your password here:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>`,
   });
 }
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Plain text, one paragraph per blank-line-separated block — creators type
+ * a normal message, not HTML. */
+function textToHtml(body: string): string {
+  return body
+    .split(/\n{2,}/)
+    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+/** Sends one broadcast email to one recipient. The caller (broadcast.service)
+ * loops this per-recipient rather than a single multi-recipient send, so
+ * each member only ever sees their own address. */
+export function sendBroadcastEmail(
+  to: string,
+  toName: string | null,
+  subject: string,
+  body: string,
+) {
+  return sendEmail({ to, toName: toName ?? undefined, subject, html: textToHtml(body) });
+}

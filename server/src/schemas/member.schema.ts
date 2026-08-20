@@ -3,15 +3,19 @@ import { memberTypeSchema } from "./plan.schema";
 
 const phoneSchema = z.string().trim().max(20).optional().default("");
 
+const emailSchema = z.string().trim().toLowerCase().email().optional();
+
 export const createMemberSchema = z.object({
   name: z.string().trim().min(1).max(80),
   phone: phoneSchema,
+  email: emailSchema,
   planId: z.string().min(1).optional(),
   amount: z.number().int().positive().optional(),
   type: memberTypeSchema.optional(),
 });
 
 export const updateMemberSchema = z.object({
+  email: emailSchema,
   link: z.string().trim().max(300).optional(),
   earlyAccess: z.boolean().optional(),
 });

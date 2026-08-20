@@ -3,10 +3,7 @@ generator client {
 }
 
 datasource db {
-  // SQLite for local dev — zero setup, one file. Swap to postgresql/mysql for
-  // production by changing `provider` and `DATABASE_URL`; the schema below
-  // doesn't use anything SQLite-specific.
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -43,7 +40,8 @@ model Owner {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  groups Group[]
+  groups     Group[]
+  broadcasts Broadcast[]
 
   @@map("owners")
 }
@@ -57,8 +55,9 @@ model Group {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  plans   Plan[]
-  members Member[]
+  plans      Plan[]
+  members    Member[]
+  broadcasts Broadcast[]
 
   @@unique([ownerId, name])
   @@map("groups")
@@ -87,6 +86,7 @@ model Member {
   plan        Plan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
   name        String
   phone       String
+  email       String?
   type        MemberType
   amount      Int
   paidAmount  Int        @default(0)
@@ -99,6 +99,20 @@ model Member {
   entries Entry[]
 
   @@map("members")
+}
+
+model Broadcast {
+  id             String   @id @default(cuid())
+  ownerId        String
+  owner          Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  groupId        String?
+  group          Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  subject        String
+  body           String
+  recipientCount Int
+  sentAt         DateTime @default(now())
+
+  @@map("broadcasts")
 }
 
 model Entry {
