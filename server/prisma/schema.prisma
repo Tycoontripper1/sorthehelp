@@ -3,10 +3,7 @@ generator client {
 }
 
 datasource db {
-  // SQLite for local dev — zero setup, one file. Swap to postgresql/mysql for
-  // production by changing `provider` and `DATABASE_URL`; the schema below
-  // doesn't use anything SQLite-specific.
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

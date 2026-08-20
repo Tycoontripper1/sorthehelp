@@ -34,8 +34,8 @@ export async function listMembers(req: Request, res: Response) {
       ...(planId && { planId }),
       ...(q && {
         OR: [
-          { name: { contains: q } },
-          { phone: { contains: q } },
+          { name: { contains: q, mode: "insensitive" } },
+          { phone: { contains: q, mode: "insensitive" } },
         ],
       }),
     },
