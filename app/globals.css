@@ -237,3 +237,16 @@ input:focus {
     margin: 0 auto;
   }
 }
+
+.desktop-guard {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  #sorthehelp-app {
+    display: none;
+  }
+  .desktop-guard {
+    display: flex;
+  }
+}
