@@ -484,6 +484,28 @@ export function useSorthehelp(
     say("Opening WhatsApp for " + m.name);
   };
 
+  /** Real members: ask the backend to render + log the reminder, then open its WhatsApp link. Mock members: build it locally, as before. */
+  const remindMemberAction = async (m: Member) => {
+    if (isRealMember(m.id)) {
+      const result = await withToast(
+        membersApi.remindMember(m.id).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not prepare reminder",
+          }),
+        ),
+        { loading: "Preparing reminder…", success: "Opening WhatsApp for " + m.name },
+      );
+      if (!result.ok) return;
+      if (typeof window !== "undefined") {
+        window.open(result.data.whatsappUrl, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+    openWhatsApp(m, reminderMessage(m));
+  };
+
   const reminderMessage = (m: Member) => {
     const balance = m.amount - m.paidAmount;
     const template = s.reminderTemplate.trim() || DEFAULT_REMINDER_TEMPLATE;
@@ -1007,9 +1029,14 @@ export function useSorthehelp(
     sayOk("Reminder message updated");
   };
 
+  // Real backend members have a cuid id; the mock/demo ones use the
+  // "local-" ids from tempId() above. That prefix is the only signal we
+  // need to route an action to the API instead of local state.
+  const isRealMember = (id: string) => !id.startsWith("local-");
+
   const closePay = () =>
     setS((prev) => ({ ...prev, payFor: null, payAmount: "" }));
-  const confirmPay = () => {
+  const confirmPay = async () => {
     const id = s.payFor;
     if (id === null) return;
     const amount = Number(s.payAmount) || 0;
@@ -1018,6 +1045,32 @@ export function useSorthehelp(
       return;
     }
     const target = s.members.find((m) => m.id === id);
+    if (!target) return;
+
+    if (isRealMember(id)) {
+      const result = await withToast(
+        membersApi.logPayment(id, amount).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not log payment",
+          }),
+        ),
+        { loading: "Logging payment…", success: `${target.name} · ${naira(amount)} logged` },
+      );
+      if (!result.ok) return;
+      const cycleDone = target.paidAmount + amount >= target.amount;
+      const updated = fromApiMember(result.data.member, target.group);
+      setS((prev) => ({
+        ...prev,
+        members: prev.members.map((m) => (m.id === id ? updated : m)),
+        payFor: null,
+        payAmount: "",
+        stampId: cycleDone ? id : prev.stampId,
+      }));
+      return;
+    }
+
     setS((prev) => ({
       ...prev,
       members: prev.members.map((m) => {
@@ -1036,29 +1089,49 @@ export function useSorthehelp(
       payFor: null,
       payAmount: "",
       stampId:
-        target && target.paidAmount + amount >= target.amount ? id : prev.stampId,
+        target.paidAmount + amount >= target.amount ? id : prev.stampId,
     }));
-    sayOk((target ? target.name : "Payment") + " · " + naira(amount) + " logged");
+    sayOk(target.name + " · " + naira(amount) + " logged");
   };
 
-  const markPaid = (id: string) => {
-    setS((prev) => {
-      const target = prev.members.find((m) => m.id === id);
-      return {
-        ...prev,
-        members: prev.members.map((m) =>
-          m.id !== id
-            ? m
-            : m.type === "one_time"
-              ? { ...m, paidAmount: m.amount }
-              : { ...m, paidAmount: 0, dueDate: Date.now() + 30 * DAY },
+  const markPaid = async (id: string) => {
+    const target = s.members.find((m) => m.id === id);
+    if (!target) return;
+
+    if (isRealMember(id)) {
+      const result = await withToast(
+        membersApi.markMemberPaid(id).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not mark as paid",
+          }),
         ),
-        revenue: prev.revenue + (target ? target.amount : 0),
+        { loading: "Marking as paid…", success: `${target.name} marked as paid` },
+      );
+      if (!result.ok) return;
+      const updated = fromApiMember(result.data.member, target.group);
+      setS((prev) => ({
+        ...prev,
+        members: prev.members.map((m) => (m.id === id ? updated : m)),
         stampId: id,
-      };
-    });
-    const m = s.members.find((x) => x.id === id);
-    sayOk((m ? m.name : "Member") + " marked as paid");
+      }));
+      return;
+    }
+
+    setS((prev) => ({
+      ...prev,
+      members: prev.members.map((m) =>
+        m.id !== id
+          ? m
+          : m.type === "one_time"
+            ? { ...m, paidAmount: m.amount }
+            : { ...m, paidAmount: 0, dueDate: Date.now() + 30 * DAY },
+      ),
+      revenue: prev.revenue + target.amount,
+      stampId: id,
+    }));
+    sayOk(target.name + " marked as paid");
   };
 
   const scr = s.screen;
@@ -1127,7 +1200,7 @@ export function useSorthehelp(
         setS((prev) => ({ ...prev, payFor: m.id }));
         say("Logging payment for " + m.name);
       },
-      remind: () => openWhatsApp(m, reminderMessage(m)),
+      remind: () => remindMemberAction(m),
       send: () => {
         if (!m.link.trim()) {
           setS((prev) => ({ ...prev, selId: m.id, screen: "member" }));
@@ -1778,7 +1851,7 @@ export function useSorthehelp(
       }));
     },
     paySel: () => markPaid(s.selId),
-    remindSel: () => openWhatsApp(selMember, reminderMessage(selMember)),
+    remindSel: () => remindMemberAction(selMember),
 
     addOpen: s.addOpen,
     openAdd,
