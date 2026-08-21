@@ -144,102 +144,11 @@ interface State {
   telegramDraft: string;
 }
 
-const initialPlans: Plan[] = [
-  {
-    id: "1",
-    group: "Advanced Crochet",
-    name: "Standard",
-    price: 5000,
-    type: "one_time",
-  },
-  {
-    id: "2",
-    group: "Iron Yard",
-    name: "Standard",
-    price: 8000,
-    type: "recurring",
-  },
-  {
-    id: "3",
-    group: "Iron Yard",
-    name: "Premium",
-    price: 10000,
-    type: "recurring",
-  },
-];
-
-const initialMembers: Member[] = [
-  {
-    id: "1",
-    name: "Ngozi Okafor",
-    phone: "0803 411 2288",
-    email: "ngozi.okafor@example.com",
-    type: "one_time",
-    amount: 5000,
-    paidAmount: 5000,
-    note: "Advanced Crochet",
-    link: "https://t.me/+abc123uniq",
-    group: "Advanced Crochet",
-    earlyAccess: false,
-    planId: "1",
-  },
-  {
-    id: "2",
-    name: "Femi Adio",
-    phone: "0701 992 4410",
-    email: "femi.adio@example.com",
-    type: "recurring",
-    amount: 8000,
-    paidAmount: 0,
-    dueDate: Date.now() + 2 * DAY,
-    note: "Iron Yard",
-    link: "",
-    group: "Iron Yard",
-    planId: "2",
-  },
-  {
-    id: "3",
-    name: "Ibrahim Musa",
-    phone: "0812 555 0193",
-    email: "",
-    type: "recurring",
-    amount: 8000,
-    paidAmount: 3000,
-    dueDate: Date.now() - 3 * DAY,
-    note: "Iron Yard",
-    link: "",
-    group: "Iron Yard",
-    planId: "2",
-  },
-  {
-    id: "4",
-    name: "Chiamaka Eze",
-    phone: "0906 220 7734",
-    email: "chiamaka.eze@example.com",
-    type: "recurring",
-    amount: 10000,
-    paidAmount: 0,
-    dueDate: Date.now() + 21 * DAY,
-    note: "Iron Yard",
-    link: "",
-    group: "Iron Yard",
-    planId: "3",
-  },
-  {
-    id: "5",
-    name: "Tolu Bankole",
-    phone: "0705 118 6620",
-    email: "tolu.bankole@example.com",
-    type: "one_time",
-    amount: 5000,
-    paidAmount: 2000,
-    note: "Advanced Crochet",
-    link: "",
-    group: "Advanced Crochet",
-    earlyAccess: true,
-    planId: "1",
-  },
-];
+// Real data now comes from the backend (see lib/services/). These start
+// empty — the local-mock code paths (tempId(), isRealId()) only exist as
+// a fallback for a group somehow rendered before its real id is known.
+const initialPlans: Plan[] = [];
+const initialMembers: Member[] = [];
 
 const DEFAULT_REMINDER_TEMPLATE =
   "Hi {name}, friendly reminder from {group} — {amount} is still outstanding. Kindly make payment to keep your access active. Thank you!";
@@ -260,16 +169,16 @@ function makeInitialState(startScreen: Screen): State {
     tg: true,
     wa: true,
     lock: false,
-    group: "Advanced Crochet",
+    group: "",
     filter: "all",
     statusFilter: "all",
     query: "",
-    selId: "2",
+    selId: "",
     stampId: null,
     pickerOpen: false,
     authPending: false,
     owner: null,
-    revenue: 26000,
+    revenue: 0,
     members: initialMembers,
     plans: initialPlans,
     backendGroups: [],
@@ -365,6 +274,32 @@ export function useSorthehelp(
       setS((prev) => ({ ...prev, backendGroups: groups, backendGroupsLoading: false }));
     } catch {
       setS((prev) => ({ ...prev, backendGroupsLoading: false }));
+    }
+  };
+
+  /**
+   * Called right after a successful login/Google sign-in for a returning
+   * owner. Opens their first real group's ledger if they have one, or
+   * sends them into onboarding to create one if they somehow don't
+   * (e.g. signed up but never finished setup).
+   */
+  const routeAfterLogin = async () => {
+    try {
+      const { groups } = await groupsApi.listGroups();
+      const first = groups[0];
+      if (first) {
+        setS((prev) => ({
+          ...prev,
+          screen: "ledger",
+          group: first.name,
+          activeGroupId: first.id,
+          backendGroups: groups,
+        }));
+      } else {
+        setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }));
+      }
+    } catch {
+      setS((prev) => ({ ...prev, screen: "onboard", obStep: 1 }));
     }
   };
 
@@ -1571,7 +1506,23 @@ export function useSorthehelp(
     remove: () => deletePlan(p.id),
   }));
 
-  const selMember = s.members.find((x) => x.id === s.selId) || s.members[0];
+  // Falls back to a blank member rather than undefined so the "member"
+  // screen can't crash mid-transition (e.g. the member it was showing
+  // just got deleted, one render before navigating back to the ledger).
+  const selMember: Member = s.members.find((x) => x.id === s.selId) ??
+    s.members[0] ?? {
+      id: "",
+      name: "",
+      phone: "",
+      email: "",
+      type: "one_time",
+      amount: 0,
+      paidAmount: 0,
+      note: "",
+      link: "",
+      group: s.group,
+      planId: null,
+    };
   const selStatus = statusOf(selMember);
   const [selBadge, selBadgeBg, selBadgeFg] = badgeOf(selStatus, selMember);
   const sel = {
@@ -1877,7 +1828,8 @@ export function useSorthehelp(
       );
       setS((prev) => ({ ...prev, authPending: false }));
       if (!result.ok) return;
-      setS((prev) => ({ ...prev, screen: "ledger", owner: result.data.owner }));
+      setS((prev) => ({ ...prev, owner: result.data.owner }));
+      routeAfterLogin();
     },
     signupWithPassword: async () => {
       if (!s.identifier.trim()) {
@@ -1941,12 +1893,12 @@ export function useSorthehelp(
       });
       setS((prev) => ({ ...prev, authPending: false }));
       if (!result.ok) return;
-      setS((prev) => ({
-        ...prev,
-        owner: result.data.owner,
-        screen: result.data.isNewOwner ? "onboard" : "ledger",
-        obStep: result.data.isNewOwner ? 1 : prev.obStep,
-      }));
+      if (result.data.isNewOwner) {
+        setS((prev) => ({ ...prev, owner: result.data.owner, screen: "onboard", obStep: 1 }));
+      } else {
+        setS((prev) => ({ ...prev, owner: result.data.owner }));
+        routeAfterLogin();
+      }
     },
 
     obStep: s.obStep,
