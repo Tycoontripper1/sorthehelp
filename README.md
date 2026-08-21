@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sorthehelp
 
-## Getting Started
+A Naira-priced, WhatsApp-native ledger for payment and access tracking — built for African creators and community owners.
 
-First, run the development server:
+**Live:** [sorthehelp.com](https://sorthehelp.com)
+Submitted to the **AI Academy Nigeria Pitchathon 2026**.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What it does
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Nigerian creators and community owners — coaches, cohort admins, course creators — run their businesses through WhatsApp but track payment and access manually. Sorthehelp replaces the spreadsheet and the screenshotted bank alert with one book for one-time sales and recurring memberships: log a payment, mark as paid, and access delivers automatically.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Backend** — Express, TypeScript, Prisma, PostgreSQL
+- Auth: email/phone + password, Google sign-in, email verification, password reset, PIN unlock, JWT (ownership-scoped)
+- Core ledger model: `Owner → Group → Plan → Member → Entry`, full CRUD + history log
+- Telegram integration for access delivery (single-use invite on settlement, revoked on removal)
+- WhatsApp reminders via deep link; email broadcasts via Zeptomail
 
-## Learn More
+**Frontend** — Next.js 16, React 19
+- Auth flow wired to the live API (splash → signup/login → onboarding → PIN unlock → recovery)
+- Full product UI: groups, ledger, member detail, plans, pay/mark-paid, reminder templates, bulk member add
 
-To learn more about Next.js, take a look at the following resources:
+## Status
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Backend API is complete. Frontend UI is fully built and currently running on mock state pending final wiring to the live backend, ahead of public launch.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Now** — payment & access tracking (this repo)
+2. **Next** — AI-powered collections: context-aware WhatsApp reminders and natural-language ledger queries, built on Meta's Llama models
+3. **Then** — full creator-monetization platform: native memberships, content delivery, payouts
