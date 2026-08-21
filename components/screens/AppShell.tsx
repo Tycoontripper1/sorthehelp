@@ -9,7 +9,7 @@ import { MemberDetail } from "./MemberDetail";
 import { Groups } from "./Groups";
 import { Settings } from "./Settings";
 import { Paywall } from "./Paywall";
-import { PayModal, PlanPickerModal, ReminderEditModal } from "@/components/modals";
+import { BulkAddSheet, PayModal, PlanPickerModal, ReminderEditModal } from "@/components/modals";
 
 export function AppShell({ v }: { v: SorthehelpVals }): React.JSX.Element {
   return (
@@ -54,6 +54,7 @@ export function AppShell({ v }: { v: SorthehelpVals }): React.JSX.Element {
       <PayModal v={v} />
       <PlanPickerModal v={v} />
       <ReminderEditModal v={v} />
+      <BulkAddSheet v={v} />
     </div>
   );
 }

@@ -343,7 +343,7 @@ export function MemberDetail({ v }: { v: SorthehelpVals }): React.JSX.Element {
       </div>
       <button
         type="button"
-        onClick={v.go.ledger}
+        onClick={v.deleteSel}
         style={css(
           "display:block;margin:16px auto 0;border:none;background:none;font-size:11px;color:#8C4A3A;text-decoration:underline;cursor:pointer;font-family:Inter,sans-serif",
         )}

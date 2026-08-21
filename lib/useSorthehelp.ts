@@ -773,7 +773,7 @@ export function useSorthehelp(
     sayOk(name + " added to " + groupName);
   };
 
-  const openBulk = () =>
+  const openBulk = () => {
     setS((prev) => {
       const firstPlan = prev.plans.find((p) => p.group === prev.group);
       return {
@@ -785,9 +785,11 @@ export function useSorthehelp(
         newPlanFormOpen: false,
       };
     });
+    refreshPlansIfNeeded();
+  };
   const closeBulk = () =>
     setS((prev) => ({ ...prev, bulkOpen: false, bulkText: "" }));
-  const confirmBulk = () => {
+  const confirmBulk = async () => {
     const lines = s.bulkText
       .split("\n")
       .map((l) => l.trim())
@@ -808,28 +810,73 @@ export function useSorthehelp(
       return;
     }
 
+    const parsed = lines
+      .map((line) => {
+        const [rawName, rawPhone = "", rawEmail = ""] = line.split(",");
+        return { name: (rawName ?? "").trim(), phone: rawPhone.trim(), email: rawEmail.trim() };
+      })
+      .filter((m) => m.name);
+
+    const groupId = s.activeGroupId;
+    const groupName = s.group;
+
+    if (groupId) {
+      // There's no bulk-create endpoint — fire one createMember call per
+      // line and collect whichever succeed. allSettled so one bad row
+      // (e.g. a duplicate) doesn't lose the rest of the paste.
+      const id = toast.loading(`Adding ${parsed.length} member${parsed.length === 1 ? "" : "s"}…`);
+      const results = await Promise.allSettled(
+        parsed.map((m) =>
+          membersApi.createMember(groupId, {
+            name: m.name,
+            phone: m.phone || undefined,
+            email: m.email || undefined,
+            amount,
+            type: type === "one_time" ? "ONE_TIME" : "RECURRING",
+          }),
+        ),
+      );
+      const created = results
+        .filter((r): r is PromiseFulfilledResult<{ member: IMember }> => r.status === "fulfilled")
+        .map((r) => fromApiMember(r.value.member, groupName));
+      const failed = results.length - created.length;
+      if (created.length > 0) {
+        setS((prev) => ({ ...prev, members: [...prev.members, ...created] }));
+      }
+      if (created.length === 0) {
+        toast.error("Could not add any members", { id });
+      } else if (failed > 0) {
+        toast.error(`${created.length} added, ${failed} failed`, { id });
+      } else {
+        toast.success(`${created.length} member${created.length === 1 ? "" : "s"} added to ${groupName}`, { id });
+      }
+      setS((prev) => ({
+        ...prev,
+        bulkOpen: false,
+        bulkText: "",
+        newAmount: "",
+        newType: "one_time",
+        newPlanId: null,
+      }));
+      return;
+    }
+
     let added = 0;
     setS((prev) => {
-      const created: Member[] = [];
-      for (const line of lines) {
-        const [rawName, rawPhone = "", rawEmail = ""] = line.split(",");
-        const name = (rawName ?? "").trim();
-        if (!name) continue;
-        created.push({
-          id: tempId(),
-          name,
-          phone: rawPhone.trim(),
-          email: rawEmail.trim(),
-          type,
-          amount,
-          paidAmount: 0,
-          note: prev.group,
-          link: "",
-          group: prev.group,
-          dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
-          planId: usingPlan ? usingPlan.id : null,
-        });
-      }
+      const created: Member[] = parsed.map((m) => ({
+        id: tempId(),
+        name: m.name,
+        phone: m.phone,
+        email: m.email,
+        type,
+        amount,
+        paidAmount: 0,
+        note: prev.group,
+        link: "",
+        group: prev.group,
+        dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
+        planId: usingPlan ? usingPlan.id : null,
+      }));
       added = created.length;
       return {
         ...prev,
@@ -1266,6 +1313,32 @@ export function useSorthehelp(
       stampId: id,
     }));
     sayOk(target.name + " marked as paid");
+  };
+
+  const deleteMember = async (id: string) => {
+    const target = s.members.find((m) => m.id === id);
+    if (!target) return;
+
+    if (isRealId(id)) {
+      const result = await withToast(
+        membersApi.deleteMember(id).then(
+          () => ({ ok: true as const, data: null }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not remove member",
+          }),
+        ),
+        { loading: "Removing member…", success: `${target.name} removed` },
+      );
+      if (!result.ok) return;
+    } else {
+      sayOk(target.name + " removed");
+    }
+    setS((prev) => ({
+      ...prev,
+      members: prev.members.filter((m) => m.id !== id),
+      screen: "ledger",
+    }));
   };
 
   const scr = s.screen;
@@ -1762,8 +1835,12 @@ export function useSorthehelp(
       "settings",
       "paywall",
     ].includes(scr),
-    isLedger: scr === "ledger",
-    isEmpty: scr === "empty",
+    isLedger: scr === "ledger" && inGroup.length > 0,
+    // "empty" was a dead screen — nothing ever navigated to it, so the
+    // dedicated Empty view (and its bulk-add entry point) was
+    // unreachable. Show it instead of the ledger whenever the active
+    // group genuinely has no members yet.
+    isEmpty: scr === "empty" || (scr === "ledger" && inGroup.length === 0),
     isMember: scr === "member",
     isGroups: scr === "groups",
     isSettings: scr === "settings",
@@ -1986,6 +2063,7 @@ export function useSorthehelp(
     },
     paySel: () => markPaid(s.selId),
     remindSel: () => remindMemberAction(selMember),
+    deleteSel: () => deleteMember(s.selId),
 
     addOpen: s.addOpen,
     openAdd,
