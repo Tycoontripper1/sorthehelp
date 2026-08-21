@@ -13,6 +13,8 @@ import {
   type IOwner,
 } from "@/actions/auth";
 import type { ActionResult } from "@/actions/common";
+import * as groupsApi from "@/lib/services/groups";
+import type { IGroup } from "@/lib/services/types";
 
 const DAY = 86400000;
 export const INK = "#202A33";
@@ -91,6 +93,14 @@ interface State {
   revenue: number;
   members: Member[];
   plans: Plan[];
+  // Real groups fetched from the backend (see lib/services/groups.ts).
+  // `members`/`plans` above are still local mock data — only the Groups
+  // list and creating a group are wired to the API so far. The two are
+  // linked loosely by name: picking a real group sets `group` (the name
+  // string) below, which the mock ledger/members screens already filter
+  // by.
+  backendGroups: IGroup[];
+  backendGroupsLoading: boolean;
   addOpen: boolean;
   newName: string;
   newAmount: string;
@@ -254,6 +264,8 @@ function makeInitialState(startScreen: Screen): State {
     revenue: 26000,
     members: initialMembers,
     plans: initialPlans,
+    backendGroups: [],
+    backendGroupsLoading: false,
     addOpen: false,
     newName: "",
     newAmount: "",
@@ -332,6 +344,52 @@ export function useSorthehelp(
     getSessionAction().then((result) => {
       if (result.ok) setS((prev) => ({ ...prev, owner: result.data.owner }));
     });
+  }, [s.screen]);
+
+  /** Re-fetches the owner's real groups from the backend and stores them in state. */
+  const refreshGroups = async () => {
+    setS((prev) => ({ ...prev, backendGroupsLoading: true }));
+    try {
+      const { groups } = await groupsApi.listGroups();
+      setS((prev) => ({ ...prev, backendGroups: groups, backendGroupsLoading: false }));
+    } catch {
+      setS((prev) => ({ ...prev, backendGroupsLoading: false }));
+    }
+  };
+
+  /**
+   * Creates the real group behind step 2 of onboarding ("Create your first
+   * group" — also reused by the Groups screen's "+ New group" button). Falls
+   * back to the same placeholder name/price shown in the step's preview if
+   * the owner left the fields blank.
+   */
+  const createGroupFromOnboarding = async () => {
+    const name = s.groupName.trim() || "Advanced Crochet";
+    const result = await withToast(
+      groupsApi.createGroup({ name }).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({
+          ok: false as const,
+          message: error instanceof Error ? error.message : "Could not create the group",
+        }),
+      ),
+      { loading: "Creating group…", success: `"${name}" created` },
+    );
+    if (!result.ok) return;
+    setS((prev) => ({
+      ...prev,
+      group: result.data.group.name,
+      backendGroups: [...prev.backendGroups, result.data.group],
+    }));
+  };
+
+  // Same lazy pattern as the profile fetch above: load groups the first
+  // time the Groups tab is opened, not on every render.
+  const fetchedGroups = useRef(false);
+  useEffect(() => {
+    if (s.screen !== "groups" || fetchedGroups.current) return;
+    fetchedGroups.current = true;
+    refreshGroups();
   }, [s.screen]);
 
   const signOut = async () => {
@@ -1244,57 +1302,33 @@ export function useSorthehelp(
     ? Math.max(payMember.amount - payMember.paidAmount, 0)
     : 0;
 
-  const groupNames = Array.from(new Set(s.members.map((m) => m.group)));
-  const groups = groupNames.map((name) => {
-    const gm = s.members.filter((m) => m.group === name);
-    const cycle = gm.every((m) => m.type === "one_time")
-      ? "one-time"
-      : "every 30 days";
-    const prices = Array.from(new Set(gm.map((m) => m.amount))).sort(
-      (a, b) => a - b,
-    );
-    const price =
-      prices.length <= 1 ? naira(prices[0] ?? 0) : naira(prices[0]) + "+";
-    const statuses = gm.map(statusOf);
-    const lapsedN = statuses.filter((st) => st === "lapsed").length;
-    const dueN = statuses.filter((st) => st === "due").length;
-    const partN = statuses.filter((st) => st === "part").length;
-    const pendingN = statuses.filter((st) => st === "pending").length;
-    let dueNote: string;
-    let dueColor: string;
-    if (lapsedN > 0) {
-      dueNote = lapsedN + " lapsed";
-      dueColor = "#8C4A3A";
-    } else if (dueN > 0) {
-      dueNote = dueN + " due soon";
-      dueColor = "#BC6C25";
-    } else if (partN > 0) {
-      dueNote = partN + " part paid";
-      dueColor = "#2E5C8A";
-    } else if (pendingN > 0) {
-      dueNote = pendingN + " pending";
-      dueColor = FAINT;
-    } else {
-      dueNote = "all settled";
-      dueColor = "#3F6B4F";
-    }
-    return {
-      name,
-      cycle,
-      price,
-      members: gm.length,
-      dueNote,
-      dueColor,
-      border: s.group === name ? INK : RULE,
-      tap: () =>
-        setS((prev) => ({
-          ...prev,
-          group: name,
-          screen: "ledger",
-          statusFilter: "all",
-        })),
-    };
-  });
+  // Groups screen data — sourced from the real backend list (s.backendGroups),
+  // not the mock members. Each backend group already comes with its own
+  // memberCount/cycle/statusNote computed server-side (see
+  // server/src/controllers/group.controller.ts:summarize).
+  const dueNoteColor = (statusNote: string): string => {
+    if (statusNote.endsWith("lapsed")) return "#8C4A3A";
+    if (statusNote.endsWith("due")) return "#BC6C25";
+    if (statusNote.endsWith("part")) return "#2E5C8A";
+    if (statusNote.endsWith("pending")) return FAINT;
+    return "#3F6B4F"; // "all settled"
+  };
+  const groups = s.backendGroups.map((g) => ({
+    name: g.name,
+    cycle: g.cycle === "ONE_TIME" ? "one-time" : "every 30 days",
+    price: g.planCount + (g.planCount === 1 ? " plan" : " plans"),
+    members: g.memberCount,
+    dueNote: g.statusNote ?? "all settled",
+    dueColor: dueNoteColor(g.statusNote ?? "all settled"),
+    border: s.group === g.name ? INK : RULE,
+    tap: () =>
+      setS((prev) => ({
+        ...prev,
+        group: g.name,
+        screen: "ledger",
+        statusFilter: "all",
+      })),
+  }));
 
   const tabDef: [Screen, string, string][] = [
     ["ledger", "▤", "Members"],
@@ -1555,10 +1589,14 @@ export function useSorthehelp(
     obIs2: s.obStep === 2,
     obIs3: s.obStep === 3,
     obCta: s.obStep === 3 ? "Open Sorthehelp" : "Continue",
-    obNext: () =>
-      s.obStep === 3
-        ? setS((prev) => ({ ...prev, screen: "ledger" }))
-        : setS((prev) => ({ ...prev, obStep: prev.obStep + 1 })),
+    obNext: () => {
+      if (s.obStep === 2) createGroupFromOnboarding();
+      if (s.obStep === 3) {
+        setS((prev) => ({ ...prev, screen: "ledger" }));
+      } else {
+        setS((prev) => ({ ...prev, obStep: prev.obStep + 1 }));
+      }
+    },
     obBack: () =>
       s.obStep === 1
         ? setS((prev) => ({ ...prev, screen: "login" }))
