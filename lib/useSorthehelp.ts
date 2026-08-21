@@ -15,7 +15,8 @@ import {
 import type { ActionResult } from "@/actions/common";
 import * as groupsApi from "@/lib/services/groups";
 import * as membersApi from "@/lib/services/members";
-import type { IGroup, IMember } from "@/lib/services/types";
+import * as plansApi from "@/lib/services/plans";
+import type { IGroup, IMember, IPlan } from "@/lib/services/types";
 
 const DAY = 86400000;
 export const INK = "#202A33";
@@ -40,11 +41,11 @@ export interface Member {
   group: string;
   dueDate?: number;
   earlyAccess?: boolean;
-  planId: number | null;
+  planId: string | null;
 }
 
 export interface Plan {
-  id: number;
+  id: string;
   group: string;
   name: string;
   price: number;
@@ -107,13 +108,14 @@ interface State {
   // mock demo groups. Drives which members list gets fetched below.
   activeGroupId: string | null;
   membersLoadedForGroupId: string | null;
+  plansLoadedForGroupId: string | null;
   addOpen: boolean;
   newName: string;
   newAmount: string;
   newPhone: string;
   newEmail: string;
   newType: MemberType;
-  newPlanId: number | "custom" | null;
+  newPlanId: string | "custom" | null;
   bulkOpen: boolean;
   bulkText: string;
   broadcastOpen: boolean;
@@ -129,10 +131,10 @@ interface State {
   reminderTemplate: string;
   reminderEditOpen: boolean;
   reminderDraft: string;
-  planFilter: number | "all";
+  planFilter: string | "all";
   planFilterOpen: boolean;
   plansOpen: boolean;
-  editingPlanId: number | null;
+  editingPlanId: string | null;
   planFormName: string;
   planFormPrice: string;
   planFormType: MemberType;
@@ -144,21 +146,21 @@ interface State {
 
 const initialPlans: Plan[] = [
   {
-    id: 1,
+    id: "1",
     group: "Advanced Crochet",
     name: "Standard",
     price: 5000,
     type: "one_time",
   },
   {
-    id: 2,
+    id: "2",
     group: "Iron Yard",
     name: "Standard",
     price: 8000,
     type: "recurring",
   },
   {
-    id: 3,
+    id: "3",
     group: "Iron Yard",
     name: "Premium",
     price: 10000,
@@ -179,7 +181,7 @@ const initialMembers: Member[] = [
     link: "https://t.me/+abc123uniq",
     group: "Advanced Crochet",
     earlyAccess: false,
-    planId: 1,
+    planId: "1",
   },
   {
     id: "2",
@@ -193,7 +195,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
-    planId: 2,
+    planId: "2",
   },
   {
     id: "3",
@@ -207,7 +209,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
-    planId: 2,
+    planId: "2",
   },
   {
     id: "4",
@@ -221,7 +223,7 @@ const initialMembers: Member[] = [
     note: "Iron Yard",
     link: "",
     group: "Iron Yard",
-    planId: 3,
+    planId: "3",
   },
   {
     id: "5",
@@ -235,7 +237,7 @@ const initialMembers: Member[] = [
     link: "",
     group: "Advanced Crochet",
     earlyAccess: true,
-    planId: 1,
+    planId: "1",
   },
 ];
 
@@ -274,6 +276,7 @@ function makeInitialState(startScreen: Screen): State {
     backendGroupsLoading: false,
     activeGroupId: null,
     membersLoadedForGroupId: null,
+    plansLoadedForGroupId: null,
     addOpen: false,
     newName: "",
     newAmount: "",
@@ -415,7 +418,7 @@ export function useSorthehelp(
     group: groupName,
     dueDate: m.dueDate ? new Date(m.dueDate).getTime() : undefined,
     earlyAccess: m.earlyAccess,
-    planId: null, // plans aren't wired to the backend yet
+    planId: m.planId,
   });
 
   // When the owner opens a real group's ledger, replace that group's
@@ -440,6 +443,35 @@ export function useSorthehelp(
       () => setS((prev) => ({ ...prev, membersLoadedForGroupId: groupId })),
     );
   }, [s.screen, s.activeGroupId, s.membersLoadedForGroupId, s.group]);
+
+  /** Converts a real backend plan into the shape the (still-mock) Plans UI expects. */
+  const fromApiPlan = (p: IPlan, groupName: string): Plan => ({
+    id: p.id,
+    group: groupName,
+    name: p.name,
+    price: p.price,
+    type: p.type === "ONE_TIME" ? "one_time" : "recurring",
+  });
+
+  /** Fetches the active real group's plans and swaps them in for its mock ones, same pattern as the members effect above. Called when the Plans sheet opens rather than on a screen change, since plans live in a modal rather than their own screen. */
+  const refreshPlansIfNeeded = () => {
+    if (!s.activeGroupId || s.plansLoadedForGroupId === s.activeGroupId) return;
+    const groupId = s.activeGroupId;
+    const groupName = s.group;
+    plansApi.listPlans(groupId).then(
+      ({ plans }) => {
+        setS((prev) => ({
+          ...prev,
+          plans: [
+            ...prev.plans.filter((p) => p.group !== groupName),
+            ...plans.map((p) => fromApiPlan(p, groupName)),
+          ],
+          plansLoadedForGroupId: groupId,
+        }));
+      },
+      () => setS((prev) => ({ ...prev, plansLoadedForGroupId: groupId })),
+    );
+  };
 
   const signOut = async () => {
     await logoutAction();
@@ -486,7 +518,7 @@ export function useSorthehelp(
 
   /** Real members: ask the backend to render + log the reminder, then open its WhatsApp link. Mock members: build it locally, as before. */
   const remindMemberAction = async (m: Member) => {
-    if (isRealMember(m.id)) {
+    if (isRealId(m.id)) {
       const result = await withToast(
         membersApi.remindMember(m.id).then(
           (data) => ({ ok: true as const, data }),
@@ -563,7 +595,7 @@ export function useSorthehelp(
     );
   };
 
-  const openAdd = () =>
+  const openAdd = () => {
     setS((prev) => {
       const firstPlan = prev.plans.find((p) => p.group === prev.group);
       return {
@@ -576,6 +608,8 @@ export function useSorthehelp(
         newPlanType: "one_time",
       };
     });
+    refreshPlansIfNeeded();
+  };
   const closeAdd = () =>
     setS((prev) => ({
       ...prev,
@@ -590,7 +624,7 @@ export function useSorthehelp(
       newPlanName: "",
       newPlanPrice: "",
     }));
-  const pickNewMemberPlan = (id: number | "custom") =>
+  const pickNewMemberPlan = (id: string | "custom") =>
     setS((prev) => ({ ...prev, newPlanId: id, newPlanFormOpen: false }));
   const toggleNewPlanForm = () =>
     setS((prev) => ({
@@ -599,7 +633,7 @@ export function useSorthehelp(
       newPlanName: "",
       newPlanPrice: "",
     }));
-  const createInlinePlan = () => {
+  const createInlinePlan = async () => {
     if (!s.newPlanName.trim()) {
       say("Name the plan first");
       return;
@@ -609,19 +643,46 @@ export function useSorthehelp(
       say("Set a price for the plan");
       return;
     }
+    const name = s.newPlanName.trim();
+    const type = s.newPlanType;
+    const groupName = s.group;
+
+    if (s.activeGroupId) {
+      const result = await withToast(
+        plansApi
+          .createPlan(s.activeGroupId, {
+            name,
+            price,
+            type: type === "one_time" ? "ONE_TIME" : "RECURRING",
+          })
+          .then(
+            (data) => ({ ok: true as const, data }),
+            (error: unknown) => ({
+              ok: false as const,
+              message: error instanceof Error ? error.message : "Could not create plan",
+            }),
+          ),
+        { loading: "Creating plan…", success: "Plan created" },
+      );
+      if (!result.ok) return;
+      const plan = fromApiPlan(result.data.plan, groupName);
+      setS((prev) => ({
+        ...prev,
+        plans: [...prev.plans, plan],
+        newPlanId: plan.id,
+        newPlanFormOpen: false,
+        newPlanName: "",
+        newPlanPrice: "",
+      }));
+      return;
+    }
+
     setS((prev) => {
-      const nextId = prev.plans.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-      const plan: Plan = {
-        id: nextId,
-        group: prev.group,
-        name: prev.newPlanName.trim(),
-        price,
-        type: prev.newPlanType,
-      };
+      const plan: Plan = { id: tempId(), group: groupName, name, price, type };
       return {
         ...prev,
         plans: [...prev.plans, plan],
-        newPlanId: nextId,
+        newPlanId: plan.id,
         newPlanFormOpen: false,
         newPlanName: "",
         newPlanPrice: "",
@@ -629,8 +690,10 @@ export function useSorthehelp(
     });
     sayOk("Plan created");
   };
-  /** Local-only id for the mock (non-backend) members list — never sent anywhere. */
+  /** Local-only id for mock (non-backend) members/plans — never sent anywhere. */
   const tempId = () => `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  /** Real backend records have a cuid id; mock/demo ones use the "local-" prefix from tempId() above. That's the only signal we need to route an action to the API instead of local state. */
+  const isRealId = (id: string) => !id.startsWith("local-");
 
   const confirmAdd = async () => {
     if (!s.newName.trim()) {
@@ -638,7 +701,7 @@ export function useSorthehelp(
       return;
     }
     const usingPlan =
-      typeof s.newPlanId === "number"
+      s.newPlanId !== null && s.newPlanId !== "custom"
         ? s.plans.find((p) => p.id === s.newPlanId)
         : null;
     const amount = usingPlan ? usingPlan.price : Number(s.newAmount) || 0;
@@ -735,7 +798,7 @@ export function useSorthehelp(
     }
 
     const usingPlan =
-      typeof s.newPlanId === "number"
+      s.newPlanId !== null && s.newPlanId !== "custom"
         ? s.plans.find((p) => p.id === s.newPlanId)
         : null;
     const amount = usingPlan ? usingPlan.price : Number(s.newAmount) || 0;
@@ -858,7 +921,7 @@ export function useSorthehelp(
     sayOk("Telegram disconnected for " + s.group);
   };
 
-  const openPlans = () =>
+  const openPlans = () => {
     setS((prev) => ({
       ...prev,
       plansOpen: true,
@@ -867,6 +930,8 @@ export function useSorthehelp(
       planFormPrice: "",
       planFormType: "one_time",
     }));
+    refreshPlansIfNeeded();
+  };
   const closePlans = () =>
     setS((prev) => ({
       ...prev,
@@ -875,7 +940,7 @@ export function useSorthehelp(
       planFormName: "",
       planFormPrice: "",
     }));
-  const startEditPlan = (id: number) => {
+  const startEditPlan = (id: string) => {
     const plan = s.plans.find((p) => p.id === id);
     if (!plan) return;
     setS((prev) => ({
@@ -894,7 +959,7 @@ export function useSorthehelp(
       planFormPrice: "",
       planFormType: "one_time",
     }));
-  const savePlan = () => {
+  const savePlan = async () => {
     if (!s.planFormName.trim()) {
       say("Name the plan first");
       return;
@@ -905,65 +970,113 @@ export function useSorthehelp(
       return;
     }
     const editingId = s.editingPlanId;
+    const name = s.planFormName.trim();
+    const type = s.planFormType;
+    const groupName = s.group;
+    const resetForm = () =>
+      setS((prev) => ({
+        ...prev,
+        editingPlanId: null,
+        planFormName: "",
+        planFormPrice: "",
+        planFormType: "one_time",
+      }));
+
+    if (s.activeGroupId) {
+      const apiType = type === "one_time" ? "ONE_TIME" : "RECURRING";
+      const result =
+        editingId && isRealId(editingId)
+          ? await withToast(
+              plansApi.updatePlan(editingId, { name, price, type: apiType }).then(
+                (data) => ({ ok: true as const, data }),
+                (error: unknown) => ({
+                  ok: false as const,
+                  message: error instanceof Error ? error.message : "Could not update plan",
+                }),
+              ),
+              { loading: "Saving plan…", success: "Plan updated" },
+            )
+          : await withToast(
+              plansApi.createPlan(s.activeGroupId, { name, price, type: apiType }).then(
+                (data) => ({ ok: true as const, data }),
+                (error: unknown) => ({
+                  ok: false as const,
+                  message: error instanceof Error ? error.message : "Could not create plan",
+                }),
+              ),
+              { loading: "Creating plan…", success: "Plan created" },
+            );
+      if (!result.ok) return;
+      const plan = fromApiPlan(result.data.plan, groupName);
+      setS((prev) => ({
+        ...prev,
+        plans: editingId
+          ? prev.plans.map((p) => (p.id === plan.id ? plan : p))
+          : [...prev.plans, plan],
+      }));
+      resetForm();
+      // Assigned members' amount/type may have changed server-side (see
+      // server/prisma/schema.prisma: editing a plan cascades to its
+      // members) — refetch so the ledger reflects it.
+      if (editingId) {
+        setS((prev) => ({ ...prev, membersLoadedForGroupId: null }));
+      }
+      return;
+    }
+
+    // Demo group — local-only plan, same as before.
     setS((prev) => {
       if (editingId === null) {
-        const nextId =
-          prev.plans.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-        const plan: Plan = {
-          id: nextId,
-          group: prev.group,
-          name: prev.planFormName.trim(),
-          price,
-          type: prev.planFormType,
-        };
-        return {
-          ...prev,
-          plans: [...prev.plans, plan],
-          editingPlanId: null,
-          planFormName: "",
-          planFormPrice: "",
-          planFormType: "one_time",
-        };
+        const plan: Plan = { id: tempId(), group: groupName, name, price, type };
+        return { ...prev, plans: [...prev.plans, plan] };
       }
       return {
         ...prev,
         plans: prev.plans.map((p) =>
-          p.id === editingId
-            ? { ...p, name: prev.planFormName.trim(), price, type: prev.planFormType }
-            : p,
+          p.id === editingId ? { ...p, name, price, type } : p,
         ),
         members: prev.members.map((m) =>
           m.planId === editingId
             ? {
                 ...m,
                 amount: price,
-                type: prev.planFormType,
-                dueDate:
-                  prev.planFormType === "recurring" && !m.dueDate
-                    ? Date.now() + 30 * DAY
-                    : m.dueDate,
+                type,
+                dueDate: type === "recurring" && !m.dueDate ? Date.now() + 30 * DAY : m.dueDate,
               }
             : m,
         ),
-        editingPlanId: null,
-        planFormName: "",
-        planFormPrice: "",
-        planFormType: "one_time",
       };
     });
+    resetForm();
     sayOk(editingId === null ? "Plan created" : "Plan updated");
   };
-  const deletePlan = (id: number) => {
+
+  const deletePlan = async (id: string) => {
+    if (isRealId(id)) {
+      const result = await withToast(
+        plansApi.deletePlan(id).then(
+          () => ({ ok: true as const, data: null }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not remove plan",
+          }),
+        ),
+        { loading: "Removing plan…", success: "Plan removed" },
+      );
+      if (!result.ok) return;
+    }
     setS((prev) => ({
       ...prev,
       plans: prev.plans.filter((p) => p.id !== id),
+      // The backend unlinks members from a deleted plan (custom pricing)
+      // rather than deleting them — mirror that locally too.
       members: prev.members.map((m) =>
         m.planId === id ? { ...m, planId: null } : m,
       ),
       planFilter: prev.planFilter === id ? "all" : prev.planFilter,
       editingPlanId: prev.editingPlanId === id ? null : prev.editingPlanId,
     }));
-    sayOk("Plan removed");
+    if (!isRealId(id)) sayOk("Plan removed");
   };
 
   const openPlanFilter = () => setS((prev) => ({ ...prev, planFilterOpen: true }));
@@ -974,10 +1087,38 @@ export function useSorthehelp(
     setS((prev) => ({ ...prev, planPickerFor: id }));
   const closePlanPicker = () =>
     setS((prev) => ({ ...prev, planPickerFor: null }));
-  const assignMemberPlan = (planId: number | "custom") => {
+  const assignMemberPlan = async (planId: string | "custom") => {
     const id = s.planPickerFor;
     if (id === null) return;
-    if (planId === "custom") {
+    const plan = planId === "custom" ? null : s.plans.find((p) => p.id === planId);
+    if (planId !== "custom" && !plan) return;
+
+    if (isRealId(id)) {
+      const result = await withToast(
+        membersApi.assignMemberPlan(id, plan ? plan.id : null).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not update the plan",
+          }),
+        ),
+        {
+          loading: "Updating plan…",
+          success: plan ? "Plan assigned" : "Switched to custom pricing",
+        },
+      );
+      if (!result.ok) return;
+      const groupName = s.members.find((m) => m.id === id)?.group ?? s.group;
+      const updated = fromApiMember(result.data.member, groupName);
+      setS((prev) => ({
+        ...prev,
+        members: prev.members.map((m) => (m.id === id ? updated : m)),
+        planPickerFor: null,
+      }));
+      return;
+    }
+
+    if (!plan) {
       setS((prev) => ({
         ...prev,
         members: prev.members.map((m) =>
@@ -988,8 +1129,6 @@ export function useSorthehelp(
       sayOk("Switched to custom pricing");
       return;
     }
-    const plan = s.plans.find((p) => p.id === planId);
-    if (!plan) return;
     setS((prev) => ({
       ...prev,
       members: prev.members.map((m) =>
@@ -1029,11 +1168,6 @@ export function useSorthehelp(
     sayOk("Reminder message updated");
   };
 
-  // Real backend members have a cuid id; the mock/demo ones use the
-  // "local-" ids from tempId() above. That prefix is the only signal we
-  // need to route an action to the API instead of local state.
-  const isRealMember = (id: string) => !id.startsWith("local-");
-
   const closePay = () =>
     setS((prev) => ({ ...prev, payFor: null, payAmount: "" }));
   const confirmPay = async () => {
@@ -1047,7 +1181,7 @@ export function useSorthehelp(
     const target = s.members.find((m) => m.id === id);
     if (!target) return;
 
-    if (isRealMember(id)) {
+    if (isRealId(id)) {
       const result = await withToast(
         membersApi.logPayment(id, amount).then(
           (data) => ({ ok: true as const, data }),
@@ -1098,7 +1232,7 @@ export function useSorthehelp(
     const target = s.members.find((m) => m.id === id);
     if (!target) return;
 
-    if (isRealMember(id)) {
+    if (isRealId(id)) {
       const result = await withToast(
         membersApi.markMemberPaid(id).then(
           (data) => ({ ok: true as const, data }),
@@ -1157,7 +1291,7 @@ export function useSorthehelp(
   });
 
   const q = s.query.trim().toLowerCase();
-  const planName = (planId: number | null) =>
+  const planName = (planId: string | null) =>
     planId === null ? null : s.plans.find((p) => p.id === planId)?.name ?? null;
 
   const visible = s.members
@@ -1284,8 +1418,8 @@ export function useSorthehelp(
   const plansForGroup = s.plans.filter((p) => p.group === s.group);
 
   const planFilterDefs = [
-    { id: "all" as number | "all", label: "All plans" },
-    ...plansForGroup.map((p) => ({ id: p.id as number | "all", label: p.name })),
+    { id: "all" as string | "all", label: "All plans" },
+    ...plansForGroup.map((p) => ({ id: p.id as string | "all", label: p.name })),
   ];
   const planFilters = planFilterDefs.map((p) => ({
     label: p.label,
@@ -1302,13 +1436,13 @@ export function useSorthehelp(
         ...s.plans
           .filter((p) => p.group === pickerMember.group)
           .map((p) => ({
-            id: p.id as number | "custom",
+            id: p.id as string | "custom",
             label: p.name,
             sub:
               naira(p.price) + (p.type === "recurring" ? " · 30 days" : " · once"),
           })),
         {
-          id: "custom" as number | "custom",
+          id: "custom" as string | "custom",
           label: "Custom",
           sub: naira(pickerMember.amount) + " · current amount",
         },
@@ -1338,11 +1472,11 @@ export function useSorthehelp(
 
   const newMemberPlans = [
     ...plansForGroup.map((p) => ({
-      id: p.id as number | "custom",
+      id: p.id as string | "custom",
       label: p.name,
       sub: naira(p.price) + (p.type === "recurring" ? " · 30 days" : " · once"),
     })),
-    { id: "custom" as number | "custom", label: "Custom", sub: "Set a one-off amount" },
+    { id: "custom" as string | "custom", label: "Custom", sub: "Set a one-off amount" },
   ].map((p) => ({
     label: p.label,
     sub: p.sub,
