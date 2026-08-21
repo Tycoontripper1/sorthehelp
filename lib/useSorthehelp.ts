@@ -14,7 +14,8 @@ import {
 } from "@/actions/auth";
 import type { ActionResult } from "@/actions/common";
 import * as groupsApi from "@/lib/services/groups";
-import type { IGroup } from "@/lib/services/types";
+import * as membersApi from "@/lib/services/members";
+import type { IGroup, IMember } from "@/lib/services/types";
 
 const DAY = 86400000;
 export const INK = "#202A33";
@@ -27,7 +28,7 @@ export type MemberType = "one_time" | "recurring";
 export type MemberStatus = "active" | "pending" | "due" | "lapsed" | "part";
 
 export interface Member {
-  id: number;
+  id: string;
   name: string;
   phone: string;
   email: string;
@@ -85,8 +86,8 @@ interface State {
   filter: "all" | MemberType;
   statusFilter: "all" | MemberStatus;
   query: string;
-  selId: number;
-  stampId: number | null;
+  selId: string;
+  stampId: string | null;
   pickerOpen: boolean;
   authPending: boolean;
   owner: IOwner | null;
@@ -101,6 +102,11 @@ interface State {
   // by.
   backendGroups: IGroup[];
   backendGroupsLoading: boolean;
+  // The real group currently open in the Ledger (Members) screen, if the
+  // owner navigated there from a real backendGroups entry rather than the
+  // mock demo groups. Drives which members list gets fetched below.
+  activeGroupId: string | null;
+  membersLoadedForGroupId: string | null;
   addOpen: boolean;
   newName: string;
   newAmount: string;
@@ -118,7 +124,7 @@ interface State {
   newPlanName: string;
   newPlanPrice: string;
   newPlanType: MemberType;
-  payFor: number | null;
+  payFor: string | null;
   payAmount: string;
   reminderTemplate: string;
   reminderEditOpen: boolean;
@@ -130,7 +136,7 @@ interface State {
   planFormName: string;
   planFormPrice: string;
   planFormType: MemberType;
-  planPickerFor: number | null;
+  planPickerFor: string | null;
   telegramChatIds: Record<string, string>;
   telegramSheetOpen: boolean;
   telegramDraft: string;
@@ -162,7 +168,7 @@ const initialPlans: Plan[] = [
 
 const initialMembers: Member[] = [
   {
-    id: 1,
+    id: "1",
     name: "Ngozi Okafor",
     phone: "0803 411 2288",
     email: "ngozi.okafor@example.com",
@@ -176,7 +182,7 @@ const initialMembers: Member[] = [
     planId: 1,
   },
   {
-    id: 2,
+    id: "2",
     name: "Femi Adio",
     phone: "0701 992 4410",
     email: "femi.adio@example.com",
@@ -190,7 +196,7 @@ const initialMembers: Member[] = [
     planId: 2,
   },
   {
-    id: 3,
+    id: "3",
     name: "Ibrahim Musa",
     phone: "0812 555 0193",
     email: "",
@@ -204,7 +210,7 @@ const initialMembers: Member[] = [
     planId: 2,
   },
   {
-    id: 4,
+    id: "4",
     name: "Chiamaka Eze",
     phone: "0906 220 7734",
     email: "chiamaka.eze@example.com",
@@ -218,7 +224,7 @@ const initialMembers: Member[] = [
     planId: 3,
   },
   {
-    id: 5,
+    id: "5",
     name: "Tolu Bankole",
     phone: "0705 118 6620",
     email: "tolu.bankole@example.com",
@@ -256,7 +262,7 @@ function makeInitialState(startScreen: Screen): State {
     filter: "all",
     statusFilter: "all",
     query: "",
-    selId: 2,
+    selId: "2",
     stampId: null,
     pickerOpen: false,
     authPending: false,
@@ -266,6 +272,8 @@ function makeInitialState(startScreen: Screen): State {
     plans: initialPlans,
     backendGroups: [],
     backendGroupsLoading: false,
+    activeGroupId: null,
+    membersLoadedForGroupId: null,
     addOpen: false,
     newName: "",
     newAmount: "",
@@ -379,6 +387,7 @@ export function useSorthehelp(
     setS((prev) => ({
       ...prev,
       group: result.data.group.name,
+      activeGroupId: result.data.group.id,
       backendGroups: [...prev.backendGroups, result.data.group],
     }));
   };
@@ -391,6 +400,46 @@ export function useSorthehelp(
     fetchedGroups.current = true;
     refreshGroups();
   }, [s.screen]);
+
+  /** Converts a real backend member into the shape the (still-mock) ledger UI expects. */
+  const fromApiMember = (m: IMember, groupName: string): Member => ({
+    id: m.id,
+    name: m.name,
+    phone: m.phone,
+    email: m.email ?? "",
+    type: m.type === "ONE_TIME" ? "one_time" : "recurring",
+    amount: m.amount,
+    paidAmount: m.paidAmount,
+    note: groupName,
+    link: m.link,
+    group: groupName,
+    dueDate: m.dueDate ? new Date(m.dueDate).getTime() : undefined,
+    earlyAccess: m.earlyAccess,
+    planId: null, // plans aren't wired to the backend yet
+  });
+
+  // When the owner opens a real group's ledger, replace that group's
+  // (mock) members with the real list from the backend. Runs once per
+  // group — re-tap the same group and it won't re-fetch.
+  useEffect(() => {
+    if (s.screen !== "ledger" || !s.activeGroupId) return;
+    if (s.membersLoadedForGroupId === s.activeGroupId) return;
+    const groupId = s.activeGroupId;
+    const groupName = s.group;
+    membersApi.listMembers(groupId).then(
+      ({ members }) => {
+        setS((prev) => ({
+          ...prev,
+          members: [
+            ...prev.members.filter((m) => m.group !== groupName),
+            ...members.map((m) => fromApiMember(m, groupName)),
+          ],
+          membersLoadedForGroupId: groupId,
+        }));
+      },
+      () => setS((prev) => ({ ...prev, membersLoadedForGroupId: groupId })),
+    );
+  }, [s.screen, s.activeGroupId, s.membersLoadedForGroupId, s.group]);
 
   const signOut = async () => {
     await logoutAction();
@@ -558,7 +607,10 @@ export function useSorthehelp(
     });
     sayOk("Plan created");
   };
-  const confirmAdd = () => {
+  /** Local-only id for the mock (non-backend) members list — never sent anywhere. */
+  const tempId = () => `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  const confirmAdd = async () => {
     if (!s.newName.trim()) {
       say("Add a name first");
       return;
@@ -573,26 +625,13 @@ export function useSorthehelp(
       say("Set an amount first");
       return;
     }
-    setS((prev) => {
-      const nextId =
-        prev.members.reduce((max, m) => Math.max(max, m.id), 0) + 1;
-      const member: Member = {
-        id: nextId,
-        name: prev.newName.trim(),
-        phone: prev.newPhone.trim(),
-        email: prev.newEmail.trim(),
-        type,
-        amount,
-        paidAmount: 0,
-        note: prev.group,
-        link: "",
-        group: prev.group,
-        dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
-        planId: usingPlan ? usingPlan.id : null,
-      };
-      return {
+    const name = s.newName.trim();
+    const phone = s.newPhone.trim();
+    const email = s.newEmail.trim();
+    const groupName = s.group;
+    const closeModal = () =>
+      setS((prev) => ({
         ...prev,
-        members: [...prev.members, member],
         addOpen: false,
         newName: "",
         newPhone: "",
@@ -600,9 +639,53 @@ export function useSorthehelp(
         newAmount: "",
         newType: "one_time",
         newPlanId: null,
-      };
-    });
-    sayOk(s.newName.trim() + " added to " + s.group);
+      }));
+
+    if (s.activeGroupId) {
+      // Real group — create the member on the backend.
+      const result = await withToast(
+        membersApi
+          .createMember(s.activeGroupId, {
+            name,
+            phone: phone || undefined,
+            email: email || undefined,
+            amount,
+            type: type === "one_time" ? "ONE_TIME" : "RECURRING",
+          })
+          .then(
+            (data) => ({ ok: true as const, data }),
+            (error: unknown) => ({
+              ok: false as const,
+              message: error instanceof Error ? error.message : "Could not add member",
+            }),
+          ),
+        { loading: "Adding member…", success: `${name} added to ${groupName}` },
+      );
+      if (!result.ok) return;
+      const member = fromApiMember(result.data.member, groupName);
+      setS((prev) => ({ ...prev, members: [...prev.members, member] }));
+      closeModal();
+      return;
+    }
+
+    // Demo group — keep the local-only mock behaviour.
+    const member: Member = {
+      id: tempId(),
+      name,
+      phone,
+      email,
+      type,
+      amount,
+      paidAmount: 0,
+      note: groupName,
+      link: "",
+      group: groupName,
+      dueDate: type === "recurring" ? Date.now() + 30 * DAY : undefined,
+      planId: usingPlan ? usingPlan.id : null,
+    };
+    setS((prev) => ({ ...prev, members: [...prev.members, member] }));
+    closeModal();
+    sayOk(name + " added to " + groupName);
   };
 
   const openBulk = () =>
@@ -642,15 +725,13 @@ export function useSorthehelp(
 
     let added = 0;
     setS((prev) => {
-      let nextId = prev.members.reduce((max, m) => Math.max(max, m.id), 0);
       const created: Member[] = [];
       for (const line of lines) {
         const [rawName, rawPhone = "", rawEmail = ""] = line.split(",");
         const name = (rawName ?? "").trim();
         if (!name) continue;
-        nextId += 1;
         created.push({
-          id: nextId,
+          id: tempId(),
           name,
           phone: rawPhone.trim(),
           email: rawEmail.trim(),
@@ -867,7 +948,7 @@ export function useSorthehelp(
   const closePlanFilter = () =>
     setS((prev) => ({ ...prev, planFilterOpen: false }));
 
-  const openPlanPicker = (id: number) =>
+  const openPlanPicker = (id: string) =>
     setS((prev) => ({ ...prev, planPickerFor: id }));
   const closePlanPicker = () =>
     setS((prev) => ({ ...prev, planPickerFor: null }));
@@ -960,7 +1041,7 @@ export function useSorthehelp(
     sayOk((target ? target.name : "Payment") + " · " + naira(amount) + " logged");
   };
 
-  const markPaid = (id: number) => {
+  const markPaid = (id: string) => {
     setS((prev) => {
       const target = prev.members.find((m) => m.id === id);
       return {
@@ -1325,6 +1406,7 @@ export function useSorthehelp(
       setS((prev) => ({
         ...prev,
         group: g.name,
+        activeGroupId: g.id,
         screen: "ledger",
         statusFilter: "all",
       })),
