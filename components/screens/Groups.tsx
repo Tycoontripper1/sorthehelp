@@ -233,7 +233,7 @@ export function Groups({ v }: { v: SorthehelpVals }): React.JSX.Element {
                 </button>
                 <button
                   type="button"
-                  onClick={v.sendBroadcastMock}
+                  onClick={v.sendBroadcast}
                   style={css(
                     "flex:1;border:1px solid #202A33;background:#202A33;color:#EFE7D3;border-radius:5px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif",
                   )}

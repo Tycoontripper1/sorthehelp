@@ -123,6 +123,7 @@ interface State {
   broadcastAudience: "group" | "all";
   broadcastSubject: string;
   broadcastBody: string;
+  broadcastAudienceCount: number;
   newPlanFormOpen: boolean;
   newPlanName: string;
   newPlanPrice: string;
@@ -200,6 +201,7 @@ function makeInitialState(startScreen: Screen): State {
     broadcastAudience: "group",
     broadcastSubject: "",
     broadcastBody: "",
+    broadcastAudienceCount: 0,
     newPlanFormOpen: false,
     newPlanName: "",
     newPlanPrice: "",
@@ -831,7 +833,16 @@ export function useSorthehelp(
     }
   };
 
-  const openBroadcast = () =>
+  /** Refreshes the live recipient count from the backend for the current audience choice. */
+  const refreshBroadcastAudience = (audience: "group" | "all" = s.broadcastAudience) => {
+    const groupId = audience === "group" ? (s.activeGroupId ?? undefined) : undefined;
+    broadcastsApi.getAudienceCount(groupId).then(
+      ({ count }) => setS((prev) => ({ ...prev, broadcastAudienceCount: count })),
+      () => {},
+    );
+  };
+
+  const openBroadcast = () => {
     setS((prev) => ({
       ...prev,
       broadcastOpen: true,
@@ -839,11 +850,15 @@ export function useSorthehelp(
       broadcastSubject: "",
       broadcastBody: "",
     }));
+    refreshBroadcastAudience("group");
+  };
   const closeBroadcast = () =>
     setS((prev) => ({ ...prev, broadcastOpen: false }));
-  const setBroadcastAudience = (audience: "group" | "all") =>
+  const setBroadcastAudience = (audience: "group" | "all") => {
     setS((prev) => ({ ...prev, broadcastAudience: audience }));
-  const sendBroadcastMock = () => {
+    refreshBroadcastAudience(audience);
+  };
+  const sendBroadcast = async () => {
     if (!s.broadcastSubject.trim()) {
       say("Add a subject first");
       return;
@@ -852,26 +867,35 @@ export function useSorthehelp(
       say("Write a message first");
       return;
     }
-    const audienceMembers =
-      s.broadcastAudience === "group"
-        ? s.members.filter((m) => m.group === s.group)
-        : s.members;
-    const recipientCount = audienceMembers.filter((m) => m.email.trim()).length;
+    if (s.broadcastAudienceCount === 0) {
+      say("No one in that audience has an email on file yet");
+      return;
+    }
+    const subject = s.broadcastSubject.trim();
+    const body = s.broadcastBody.trim();
+    const groupId = s.broadcastAudience === "group" ? (s.activeGroupId ?? undefined) : undefined;
+
+    const result = await withToast(
+      broadcastsApi.sendBroadcast({ groupId, subject, body }).then(
+        (data) => ({ ok: true as const, data }),
+        (error: unknown) => ({
+          ok: false as const,
+          message: error instanceof Error ? error.message : "Could not send broadcast",
+        }),
+      ),
+      {
+        loading: "Sending…",
+        success: (data) =>
+          `Sent to ${data.broadcast.recipientCount} member${data.broadcast.recipientCount === 1 ? "" : "s"}`,
+      },
+    );
+    if (!result.ok) return;
     setS((prev) => ({
       ...prev,
       broadcastOpen: false,
       broadcastSubject: "",
       broadcastBody: "",
     }));
-    if (recipientCount === 0) {
-      say("No one in that audience has an email on file yet");
-      return;
-    }
-    say(
-      "Sent to " +
-        recipientCount +
-        (recipientCount === 1 ? " member" : " members"),
-    );
   };
 
   // For a real group, the chat ID lives on the backend (group.telegramChatId)
@@ -1441,11 +1465,6 @@ export function useSorthehelp(
   const groupTarget = inGroup.reduce((sum, m) => sum + m.amount, 0);
   const groupPercent =
     groupTarget > 0 ? Math.round((groupCollected / groupTarget) * 100) : 0;
-  const broadcastPool =
-    s.broadcastAudience === "group" ? inGroup : s.members;
-  const broadcastRecipientCount = broadcastPool.filter((m) =>
-    m.email.trim(),
-  ).length;
   const statDef: [MemberStatus, string, string][] = [
     ["active", "Active", "#3F6B4F"],
     ["part", "Part", "#2E5C8A"],
@@ -2090,7 +2109,7 @@ export function useSorthehelp(
     broadcastOpen: s.broadcastOpen,
     openBroadcast,
     closeBroadcast,
-    sendBroadcastMock,
+    sendBroadcast,
     broadcastAudience: s.broadcastAudience,
     setBroadcastAudience,
     broadcastSubject: s.broadcastSubject,
@@ -2099,7 +2118,7 @@ export function useSorthehelp(
     broadcastBody: s.broadcastBody,
     setBroadcastBody: (v: string) =>
       setS((prev) => ({ ...prev, broadcastBody: v })),
-    broadcastRecipientCount,
+    broadcastRecipientCount: s.broadcastAudienceCount,
     newName: s.newName,
     setNewName: (v: string) => setS((prev) => ({ ...prev, newName: v })),
     newPhone: s.newPhone,
