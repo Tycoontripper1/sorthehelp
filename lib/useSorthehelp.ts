@@ -16,6 +16,7 @@ import type { ActionResult } from "@/actions/common";
 import * as groupsApi from "@/lib/services/groups";
 import * as membersApi from "@/lib/services/members";
 import * as plansApi from "@/lib/services/plans";
+import * as broadcastsApi from "@/lib/services/broadcasts";
 import type { IGroup, IMember, IPlan } from "@/lib/services/types";
 
 const DAY = 86400000;
@@ -873,28 +874,83 @@ export function useSorthehelp(
     );
   };
 
+  // For a real group, the chat ID lives on the backend (group.telegramChatId)
+  // — that's what actually drives auto-generated invite links on payment.
+  // The local telegramChatIds map is only a fallback for a group with no
+  // real id yet.
+  const activeBackendGroup = () => s.backendGroups.find((g) => g.id === s.activeGroupId);
+
   const openTelegramSettings = () =>
     setS((prev) => ({
       ...prev,
       telegramSheetOpen: true,
-      telegramDraft: prev.telegramChatIds[prev.group] ?? "",
+      telegramDraft:
+        activeBackendGroup()?.telegramChatId ?? prev.telegramChatIds[prev.group] ?? "",
     }));
   const closeTelegramSettings = () =>
     setS((prev) => ({ ...prev, telegramSheetOpen: false, telegramDraft: "" }));
-  const saveTelegramSettings = () => {
+  const saveTelegramSettings = async () => {
     if (!s.telegramDraft.trim()) {
       say("Paste a chat ID first");
       return;
     }
+    const chatId = s.telegramDraft.trim();
+
+    if (s.activeGroupId) {
+      const result = await withToast(
+        groupsApi.updateGroup(s.activeGroupId, { telegramChatId: chatId }).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not connect Telegram",
+          }),
+        ),
+        { loading: "Connecting…", success: "Telegram connected for " + s.group },
+      );
+      if (!result.ok) return;
+      setS((prev) => ({
+        ...prev,
+        backendGroups: prev.backendGroups.map((g) =>
+          g.id === result.data.group.id ? { ...g, telegramChatId: result.data.group.telegramChatId } : g,
+        ),
+        telegramSheetOpen: false,
+        telegramDraft: "",
+      }));
+      return;
+    }
+
     setS((prev) => ({
       ...prev,
-      telegramChatIds: { ...prev.telegramChatIds, [prev.group]: prev.telegramDraft.trim() },
+      telegramChatIds: { ...prev.telegramChatIds, [prev.group]: chatId },
       telegramSheetOpen: false,
       telegramDraft: "",
     }));
     sayOk("Telegram connected for " + s.group);
   };
-  const disconnectTelegram = () => {
+  const disconnectTelegram = async () => {
+    if (s.activeGroupId) {
+      const result = await withToast(
+        groupsApi.updateGroup(s.activeGroupId, { telegramChatId: null }).then(
+          (data) => ({ ok: true as const, data }),
+          (error: unknown) => ({
+            ok: false as const,
+            message: error instanceof Error ? error.message : "Could not disconnect Telegram",
+          }),
+        ),
+        { loading: "Disconnecting…", success: "Telegram disconnected for " + s.group },
+      );
+      if (!result.ok) return;
+      setS((prev) => ({
+        ...prev,
+        backendGroups: prev.backendGroups.map((g) =>
+          g.id === result.data.group.id ? { ...g, telegramChatId: null } : g,
+        ),
+        telegramSheetOpen: false,
+        telegramDraft: "",
+      }));
+      return;
+    }
+
     setS((prev) => {
       const next = { ...prev.telegramChatIds };
       delete next[prev.group];
@@ -2069,8 +2125,11 @@ export function useSorthehelp(
       setS((prev) => ({ ...prev, newPlanType: t })),
     createInlinePlan,
 
-    telegramConnected: Boolean(s.telegramChatIds[s.group]),
-    telegramChatIdLabel: s.telegramChatIds[s.group] || "Not connected",
+    telegramConnected: Boolean(
+      activeBackendGroup()?.telegramChatId ?? s.telegramChatIds[s.group],
+    ),
+    telegramChatIdLabel:
+      activeBackendGroup()?.telegramChatId ?? s.telegramChatIds[s.group] ?? "Not connected",
     telegramSheetOpen: s.telegramSheetOpen,
     openTelegramSettings,
     closeTelegramSettings,
