@@ -7,7 +7,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  verifyEmailSchema,
+  verifyEmailOtpSchema,
   setPinSchema,
   verifyPinSchema,
   updateMeSchema,
@@ -42,7 +42,12 @@ authRouter.post(
   validate({ body: resetPasswordSchema }),
   asyncHandler(resetPassword),
 );
-authRouter.post("/email/verify", validate({ body: verifyEmailSchema }), asyncHandler(verifyEmail));
+authRouter.post(
+  "/email/verify",
+  requireAuth,
+  validate({ body: verifyEmailOtpSchema }),
+  asyncHandler(verifyEmail),
+);
 authRouter.post("/email/resend", requireAuth, asyncHandler(resendVerification));
 
 authRouter.post("/pin/verify", validate({ body: verifyPinSchema }), asyncHandler(verifyPin));

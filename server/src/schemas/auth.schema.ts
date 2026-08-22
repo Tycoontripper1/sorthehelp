@@ -38,8 +38,8 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
-export const verifyEmailSchema = z.object({
-  token: z.string().min(1),
+export const verifyEmailOtpSchema = z.object({
+  code: z.string().trim().length(6, "Enter the 6-digit code"),
 });
 
 export const setPinSchema = z.object({

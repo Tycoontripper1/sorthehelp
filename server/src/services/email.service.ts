@@ -41,12 +41,12 @@ async function sendEmail({ to, toName, subject, html }: SendEmailInput): Promise
   }
 }
 
-export function sendVerificationEmail(to: string, name: string | null, link: string) {
+export function sendVerificationOtpEmail(to: string, name: string | null, code: string) {
   return sendEmail({
     to,
     toName: name ?? undefined,
-    subject: "Verify your Sorthehelp account",
-    html: `<p>Hi ${name ?? "there"},</p><p>Confirm this is your email address:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
+    subject: `${code} is your Sorthehelp verification code`,
+    html: `<p>Hi ${name ?? "there"},</p><p>Your verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:.15em">${code}</p><p>This code expires in 10 minutes.</p>`,
   });
 }
 

@@ -5,8 +5,8 @@ import { prisma } from "../lib/prisma";
 import { ApiError } from "../utils/ApiError";
 import { sendSuccess } from "../utils/apiResponse";
 import { signAccessToken } from "../middleware/auth";
-import { issueToken, consumeToken } from "../services/verificationToken.service";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../services/email.service";
+import { issueToken, consumeToken, issueEmailOtp, verifyEmailOtp } from "../services/verificationToken.service";
+import { sendVerificationOtpEmail, sendPasswordResetEmail } from "../services/email.service";
 import { env } from "../lib/env";
 
 const PASSWORD_ROUNDS = 10;
@@ -50,8 +50,8 @@ export async function signup(req: Request, res: Response) {
   });
 
   if (email) {
-    const token = issueToken("EMAIL_VERIFY", owner.id);
-    await sendVerificationEmail(email, name ?? null, `${env.APP_URL}/verify-email?token=${token}`);
+    const code = issueEmailOtp(owner.id);
+    await sendVerificationOtpEmail(email, name ?? null, code);
   }
 
   const jwt = signAccessToken(owner.id);
@@ -102,13 +102,13 @@ export async function resetPassword(req: Request, res: Response) {
 }
 
 export async function verifyEmail(req: Request, res: Response) {
-  const { token } = req.body as { token: string };
+  const { code } = req.body as { code: string };
 
-  const ownerId = consumeToken("EMAIL_VERIFY", token);
-  if (!ownerId) throw ApiError.badRequest("This verification link is invalid or has expired");
+  const ok = verifyEmailOtp(req.ownerId!, code);
+  if (!ok) throw ApiError.badRequest("That code is incorrect or has expired");
 
   const owner = await prisma.owner.update({
-    where: { id: ownerId },
+    where: { id: req.ownerId },
     data: { emailVerifiedAt: new Date() },
   });
   sendSuccess(res, 200, "Email verified successfully", { owner: toSafeOwner(owner) });
@@ -122,9 +122,9 @@ export async function resendVerification(req: Request, res: Response) {
     return sendSuccess(res, 200, "Email already verified");
   }
 
-  const token = issueToken("EMAIL_VERIFY", owner.id);
-  await sendVerificationEmail(owner.email, owner.name, `${env.APP_URL}/verify-email?token=${token}`);
-  return sendSuccess(res, 200, "Verification email sent");
+  const code = issueEmailOtp(owner.id);
+  await sendVerificationOtpEmail(owner.email, owner.name, code);
+  return sendSuccess(res, 200, "Verification code sent");
 }
 
 export async function setPin(req: Request, res: Response) {

@@ -15,6 +15,8 @@ import {
   getMeRequest,
   updateMeRequest,
   googleSignInRequest,
+  verifyEmailOtpRequest,
+  resendEmailOtpRequest,
 } from "./api";
 import type { IOwner } from "./response";
 import {
@@ -26,6 +28,7 @@ import {
   setPinSchema,
   updateMeSchema,
   googleSignInSchema,
+  verifyEmailOtpSchema,
 } from "./zod-schema";
 
 const COOKIE_NAME = "sth_token";
@@ -194,5 +197,33 @@ export async function updateMeAction(
     return { ok: true, data: { owner } };
   } catch (error) {
     return fail(error, "Could not update your profile");
+  }
+}
+
+export async function verifyEmailOtpAction(
+  input: unknown,
+): Promise<ActionResult<{ owner: IOwner }>> {
+  const parsed = verifyEmailOtpSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Enter the 6-digit code" };
+  }
+  const token = await getAuthToken();
+  if (!token) return { ok: false, message: "Session expired — log in again" };
+  try {
+    const { owner } = await verifyEmailOtpRequest(parsed.data, token);
+    return { ok: true, data: { owner } };
+  } catch (error) {
+    return fail(error, "That code is incorrect or has expired");
+  }
+}
+
+export async function resendEmailOtpAction(): Promise<ActionResult<null>> {
+  const token = await getAuthToken();
+  if (!token) return { ok: false, message: "Session expired — log in again" };
+  try {
+    await resendEmailOtpRequest(token);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error, "Could not resend the code");
   }
 }

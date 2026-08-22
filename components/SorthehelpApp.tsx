@@ -11,6 +11,7 @@ import { Login } from "./screens/Login";
 import { Signup } from "./screens/Signup";
 import { Recover } from "./screens/Recover";
 import { Pin } from "./screens/Pin";
+import { VerifyEmail } from "./screens/VerifyEmail";
 import { OnboardSteps } from "./screens/OnboardSteps";
 import { OnboardChecklist } from "./screens/OnboardChecklist";
 import { AppShell } from "./screens/AppShell";
@@ -54,6 +55,7 @@ export function SorthehelpApp({
         {v.isSignup && <Signup v={v} />}
         {v.isRecover && <Recover v={v} />}
         {v.isPin && <Pin v={v} />}
+        {v.isVerifyEmail && <VerifyEmail v={v} />}
         {v.isObSteps && <OnboardSteps v={v} />}
         {v.isApp && <AppShell v={v} />}
       </div>

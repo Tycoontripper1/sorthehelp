@@ -16,6 +16,7 @@ import type {
   TSetPinPayload,
   TUpdateMePayload,
   TGoogleSignInPayload,
+  TVerifyEmailOtpPayload,
 } from "./zod-schema";
 
 export function signupRequest(payload: TSignupPayload) {
@@ -84,6 +85,23 @@ export function updateMeRequest(payload: TUpdateMePayload, token: string) {
     path: "/auth/me",
     method: ApiMethodEnum.PATCH,
     body: payload,
+    token,
+  });
+}
+
+export function verifyEmailOtpRequest(payload: TVerifyEmailOtpPayload, token: string) {
+  return apiRequest<{ owner: IOwner }>({
+    path: "/auth/email/verify",
+    method: ApiMethodEnum.POST,
+    body: payload,
+    token,
+  });
+}
+
+export function resendEmailOtpRequest(token: string) {
+  return apiRequest<null>({
+    path: "/auth/email/resend",
+    method: ApiMethodEnum.POST,
     token,
   });
 }

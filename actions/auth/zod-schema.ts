@@ -62,6 +62,11 @@ export const googleSignInSchema = z.object({
 });
 export type TGoogleSignInPayload = z.infer<typeof googleSignInSchema>;
 
+export const verifyEmailOtpSchema = z.object({
+  code: z.string().trim().length(6, "Enter the 6-digit code"),
+});
+export type TVerifyEmailOtpPayload = z.infer<typeof verifyEmailOtpSchema>;
+
 export const updateMeSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   payoutAccount: z.string().trim().max(200).optional(),

@@ -10,6 +10,8 @@ import {
   getSessionAction,
   updateMeAction,
   googleSignInAction,
+  verifyEmailOtpAction,
+  resendEmailOtpAction,
   type IOwner,
 } from "@/actions/auth";
 import type { ActionResult } from "@/actions/common";
@@ -59,6 +61,7 @@ export type Screen =
   | "signup"
   | "recover"
   | "pin"
+  | "verifyEmail"
   | "onboard"
   | "ledger"
   | "empty"
@@ -77,6 +80,8 @@ interface State {
   terms: boolean;
   pin: string[];
   pin2: string[];
+  verifyOtp: string;
+  verifyResending: boolean;
   obStep: number;
   type: MemberType;
   groupName: string;
@@ -164,6 +169,8 @@ function makeInitialState(startScreen: Screen): State {
     terms: true,
     pin: ["", "", "", ""],
     pin2: ["", "", "", ""],
+    verifyOtp: "",
+    verifyResending: false,
     obStep: 1,
     type: "one_time",
     groupName: "",
@@ -282,11 +289,16 @@ export function useSorthehelp(
 
   /**
    * Called right after a successful login/Google sign-in for a returning
-   * owner. Opens their first real group's ledger if they have one, or
-   * sends them into onboarding to create one if they somehow don't
-   * (e.g. signed up but never finished setup).
+   * owner. Sends them to verify their email first if they have one on
+   * file and haven't confirmed it yet. Otherwise opens their first real
+   * group's ledger, or sends them into onboarding to create one if they
+   * somehow don't have any yet (e.g. signed up but never finished setup).
    */
-  const routeAfterLogin = async () => {
+  const routeAfterLogin = async (owner: IOwner) => {
+    if (owner.email && !owner.emailVerified) {
+      setS((prev) => ({ ...prev, screen: "verifyEmail" }));
+      return;
+    }
     try {
       const { groups } = await groupsApi.listGroups();
       const first = groups[0];
@@ -1365,6 +1377,7 @@ export function useSorthehelp(
     "signup",
     "recover",
     "pin",
+    "verifyEmail",
     "onboard",
     "ledger",
     "empty",
@@ -1851,6 +1864,7 @@ export function useSorthehelp(
     isSignup: scr === "signup",
     isRecover: scr === "recover",
     isPin: scr === "pin",
+    isVerifyEmail: scr === "verifyEmail",
     isObSteps: scr === "onboard" && variant === "steps",
     isObCheck: scr === "onboard" && variant === "checklist",
     isApp: [
@@ -1904,7 +1918,7 @@ export function useSorthehelp(
       setS((prev) => ({ ...prev, authPending: false }));
       if (!result.ok) return;
       setS((prev) => ({ ...prev, owner: result.data.owner }));
-      routeAfterLogin();
+      routeAfterLogin(result.data.owner);
     },
     signupWithPassword: async () => {
       if (!s.identifier.trim()) {
@@ -1932,7 +1946,7 @@ export function useSorthehelp(
         {
           loading: "Creating your account…",
           success: isEmail
-            ? "Account created — check your email to verify it"
+            ? "Account created — enter the code we emailed you"
             : "Account created — let's get you set up",
         },
       );
@@ -1940,9 +1954,10 @@ export function useSorthehelp(
       if (!result.ok) return;
       setS((prev) => ({
         ...prev,
-        screen: "onboard",
+        screen: isEmail ? "verifyEmail" : "onboard",
         obStep: 1,
         owner: result.data.owner,
+        verifyOtp: "",
       }));
     },
     forgotPassword: async () => {
@@ -1972,9 +1987,37 @@ export function useSorthehelp(
         setS((prev) => ({ ...prev, owner: result.data.owner, screen: "onboard", obStep: 1 }));
       } else {
         setS((prev) => ({ ...prev, owner: result.data.owner }));
-        routeAfterLogin();
+        routeAfterLogin(result.data.owner);
       }
     },
+
+    verifyEmailAddress: s.owner?.email ?? "",
+    verifyOtp: s.verifyOtp,
+    setVerifyOtp: (v: string) =>
+      setS((prev) => ({ ...prev, verifyOtp: v.replace(/\D/g, "").slice(0, 6) })),
+    verifyOtpReady: s.verifyOtp.length === 6,
+    submitVerifyOtp: async () => {
+      if (s.verifyOtp.length !== 6) {
+        say("Enter the 6-digit code");
+        return;
+      }
+      const result = await withToast(verifyEmailOtpAction({ code: s.verifyOtp }), {
+        loading: "Verifying…",
+        success: "Email verified",
+      });
+      if (!result.ok) return;
+      setS((prev) => ({ ...prev, owner: result.data.owner, verifyOtp: "" }));
+      routeAfterLogin(result.data.owner);
+    },
+    resendVerifyOtp: async () => {
+      setS((prev) => ({ ...prev, verifyResending: true }));
+      await withToast(resendEmailOtpAction(), {
+        loading: "Resending…",
+        success: "Code resent",
+      });
+      setS((prev) => ({ ...prev, verifyResending: false }));
+    },
+    verifyResending: s.verifyResending,
 
     obStep: s.obStep,
     obBars,

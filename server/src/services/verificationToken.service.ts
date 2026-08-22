@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-type Purpose = "EMAIL_VERIFY" | "PASSWORD_RESET";
+type Purpose = "PASSWORD_RESET";
 
 interface StoredToken {
   tokenHash: string;
@@ -8,7 +8,6 @@ interface StoredToken {
 }
 
 const TTL_MS: Record<Purpose, number> = {
-  EMAIL_VERIFY: 24 * 60 * 60 * 1000,
   PASSWORD_RESET: 60 * 60 * 1000,
 };
 
@@ -49,4 +48,53 @@ export function consumeToken(purpose: Purpose, token: string): string | null {
     return k.slice(purpose.length + 1);
   }
   return null;
+}
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+interface StoredOtp {
+  codeHash: string;
+  expiresAt: number;
+  attempts: number;
+}
+
+/**
+ * Email verification codes, keyed directly by ownerId — unlike the link
+ * token above, the owner is already authenticated (JWT from signup/login)
+ * by the time they're typing a code in, so there's no need to scan every
+ * pending entry to find out whose it is.
+ */
+const emailOtps = new Map<string, StoredOtp>();
+
+/** Generates, stores, and returns a fresh 6-digit code for this owner. */
+export function issueEmailOtp(ownerId: string): string {
+  const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+  emailOtps.set(ownerId, { codeHash: hash(code), expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
+  return code;
+}
+
+/**
+ * Checks `code` against the owner's stored OTP. Consumes the attempt (and
+ * the code itself, on success or once attempts run out) so a code can't be
+ * brute-forced or reused.
+ */
+export function verifyEmailOtp(ownerId: string, code: string): boolean {
+  const stored = emailOtps.get(ownerId);
+  if (!stored) return false;
+  if (Date.now() > stored.expiresAt) {
+    emailOtps.delete(ownerId);
+    return false;
+  }
+
+  stored.attempts += 1;
+  if (stored.attempts > OTP_MAX_ATTEMPTS) {
+    emailOtps.delete(ownerId);
+    return false;
+  }
+
+  if (stored.codeHash !== hash(code)) return false;
+
+  emailOtps.delete(ownerId);
+  return true;
 }
